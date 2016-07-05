@@ -17,6 +17,8 @@
 #define dprintf(...) do {} while (0)
 #endif
 
+const uint8_t empty_pixel[] = { 0xFF, 0xFF, 0xFF, 0x00 };
+
 int pixel_eq(uint8_t* p1, uint8_t* p2, int bytes_per_pixel) {
     return p1[0] == p2[0] &&
            p1[1] == p2[1] &&
@@ -86,8 +88,6 @@ int transform(FILE* input, FILE* output) {
         png_read_update_info(png, info);
     }
 
-    uint8_t* row_pointers[in_height];
-
     uint32_t rowbytes = png_get_rowbytes(png, info);
     uint8_t* image_data = malloc(rowbytes * in_height);
     if (image_data == NULL) {
@@ -95,11 +95,14 @@ int transform(FILE* input, FILE* output) {
         goto duck_out;
     }
 
-    for (int i = 0; i < in_height; ++i) {
-        // Libpng wants these "2d array" style row pointers
-        row_pointers[i] = image_data + i * rowbytes;
+    {
+        uint8_t* row_pointers[in_height];
+        for (int i = 0; i < in_height; ++i) {
+            // Libpng wants these "2d array" style row pointers
+            row_pointers[i] = image_data + i * rowbytes;
+        }
+        png_read_image(png, row_pointers);
     }
-    png_read_image(png, row_pointers);
 
     // ======================
     // Add transparency
@@ -118,7 +121,6 @@ int transform(FILE* input, FILE* output) {
         }
 
         uint8_t* bg_color = image_data + 0;// first pixel (`+ 0` not necessary)
-        uint8_t empty_pixel[] = { 0xFF, 0xFF, 0xFF, 0x00 };
         size_t in_area = in_width * in_height;
 
         for (size_t i = 0; i < in_area; i++) {
@@ -142,11 +144,46 @@ int transform(FILE* input, FILE* output) {
     bytes_per_pixel = 4;
 
     // ======================
-    // TODO resize
+    // Resize and reposition
     // ======================
 
-    uint32_t out_width = in_width;
-    uint32_t out_height = in_height;
+    // NOTE these could become adjustable in the future if we want to make this script more flexible
+    uint32_t from_dpi = 150;
+    uint32_t to_dpi = 300;
+    uint32_t scale_factor = to_dpi / from_dpi;
+
+    uint32_t out_width = 15 * to_dpi;
+    uint32_t out_height = 18 * to_dpi;
+
+    uint8_t* resized_image_data = malloc(out_width * 4 * out_height);
+    uint8_t* resized_rows[out_height];
+
+    for (int y = 0; y < out_height; ++y) {
+        resized_rows[y] = resized_image_data + y * out_width * 4;
+
+        for (int x = 0; x < out_width; ++x) {
+            uint8_t* dest_pixel = &resized_rows[y][x * 4];
+
+            // Center horizontally
+            int src_x = x - (out_width - in_width * scale_factor) / 2;
+            // Keep at top verticaly
+            int src_y = y;
+
+            src_x /= scale_factor;
+            src_y /= scale_factor;
+
+            if (src_x < 0 || src_x >= in_width || src_y >= in_height) {
+                memcpy(dest_pixel, empty_pixel, sizeof(empty_pixel));
+            }
+            else {
+                uint8_t* src_pixel = &image_data[src_y * 4 * in_width + src_x * 4];
+                memcpy(dest_pixel, src_pixel, 4);
+            }
+        }
+    }
+
+    free(image_data);
+    image_data = resized_image_data;
 
     // ======================
     // Save results
@@ -188,16 +225,8 @@ int transform(FILE* input, FILE* output) {
     png_convert_from_time_t(&modtime, time(NULL));
     png_set_tIME(out_png, out_info, &modtime);
 
-    size_t out_rowbytes = out_width * 4; // 4 bytes per pixel
-    uint8_t* out_rows[out_height];
-
-    for (int i = 0; i < in_height; ++i) {
-        // Libpng wants these "2d array" style row pointers
-        out_rows[i] = image_data + i * out_rowbytes;
-    }
-
     png_write_info(out_png, out_info);
-    png_write_image(out_png, out_rows);
+    png_write_image(out_png, resized_rows);
     png_write_end(out_png, NULL);
 
     // ======================
