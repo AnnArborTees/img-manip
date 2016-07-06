@@ -89,19 +89,20 @@ int transform(FILE* input, FILE* output) {
     }
 
     uint32_t rowbytes = png_get_rowbytes(png, info);
-    uint8_t* image_data = malloc(rowbytes * in_height);
+    uint8_t* image_data = (uint8_t*)malloc(rowbytes * in_height);
     if (image_data == NULL) {
         // malloc didn't work so we're out of memory
         goto duck_out;
     }
 
     {
-        uint8_t* row_pointers[in_height];
+        uint8_t** row_pointers = (uint8_t**)malloc(in_height * sizeof(uint8_t*));
         for (int i = 0; i < in_height; ++i) {
             // Libpng wants these "2d array" style row pointers
             row_pointers[i] = image_data + i * rowbytes;
         }
         png_read_image(png, row_pointers);
+        free(row_pointers);
     }
 
     // ======================
@@ -113,7 +114,7 @@ int transform(FILE* input, FILE* output) {
         dprintf("Already transparent - skipping removing transparency");
     }
     else {
-        uint8_t* transparent_image_data = malloc(in_width * 4 * in_height);
+        uint8_t* transparent_image_data = (uint8_t*)malloc(in_width * 4 * in_height);
         if (transparent_image_data == NULL) {
             // Outta effin' memory
             free(image_data);
@@ -155,8 +156,8 @@ int transform(FILE* input, FILE* output) {
     uint32_t out_width = 15 * to_dpi;
     uint32_t out_height = 18 * to_dpi;
 
-    uint8_t* resized_image_data = malloc(out_width * 4 * out_height);
-    uint8_t* resized_rows[out_height];
+    uint8_t* resized_image_data = (uint8_t*)malloc(out_width * 4 * out_height);
+    uint8_t** resized_rows = (uint8_t**)malloc(out_height * sizeof(uint8_t*));
 
     for (int y = 0; y < out_height; ++y) {
         resized_rows[y] = resized_image_data + y * out_width * 4;
@@ -176,7 +177,7 @@ int transform(FILE* input, FILE* output) {
                 memcpy(dest_pixel, empty_pixel, sizeof(empty_pixel));
             }
             else {
-                uint8_t* src_pixel = &image_data[src_y * 4 * in_width + src_x * 4];
+                uint8_t* src_pixel = image_data + (src_y * 4 * in_width + src_x * 4);
                 memcpy(dest_pixel, src_pixel, 4);
             }
         }
@@ -198,6 +199,7 @@ int transform(FILE* input, FILE* output) {
     out_info = png_create_info_struct(out_png);
     if (!info) {
         png_destroy_write_struct(&out_png, NULL);
+        free(resized_rows);
         free(image_data);
         goto duck_out;
     }
@@ -206,6 +208,7 @@ int transform(FILE* input, FILE* output) {
     write_failed:
         png_destroy_write_struct(&out_png, (out_info ? &out_info : NULL));
         png_destroy_read_struct(&png, &info, NULL);
+        free(resized_rows);
         free(image_data);
         return 2;
     }
@@ -232,6 +235,7 @@ int transform(FILE* input, FILE* output) {
     // ======================
     // Clean up
     // ======================
+    free(resized_rows);
     free(image_data);
     png_destroy_read_struct(&png, &info, NULL);
     png_destroy_write_struct(&out_png, &out_info);
@@ -239,7 +243,7 @@ int transform(FILE* input, FILE* output) {
 }
 
 char* change_14x16_to_15x18(char* in) {
-    char* sub = strstr(in, "14x16");
+    char* sub = strstr(in, "14x16.png");
 
     if (!sub)
         return NULL;
@@ -247,9 +251,9 @@ char* change_14x16_to_15x18(char* in) {
     size_t substr_pos = sub - in;
 
     size_t in_size = strlen(in) + 1; // <- +1 for terminating 0
-    char* out = malloc(in_size);
+    char* out = (char*)malloc(in_size);
     memcpy(out, in, in_size);
-    memcpy(out + substr_pos, "15x18", 5);
+    memcpy(out + substr_pos, "15x18.png", strlen("15x18.png"));
 
     return out;
 }
