@@ -1,9 +1,14 @@
 if [ "$RELEASE" = "true" ]; then
-  FLAGS="-O2"
-  echo "Building release binary"
+  echo "Release build"
+  FLAGS="-O3"
 else
-  echo "Building debug binary"
+  echo "Debug build"
   FLAGS="-ggdb -O0"
 fi
 
-gcc src/*.c -lpng -o bin/amazon-resize $(echo $FLAGS)
+g++ src/*.cpp -lpng -o bin/mockbot $(echo $FLAGS)
+
+if [ "$INSTALL" = "true" ]; then
+  echo "Installing"
+  cp bin/mockbot /usr/bin/mockbot
+fi
