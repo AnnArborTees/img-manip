@@ -73,6 +73,7 @@ int main(int argc, char** argv) {
             std::cerr << "Failed to encode result to " << argv[9] << '\n';
             return 2;
         }
+        fclose(f3);
     }
     else {
         std::cout << "Do `" << argv[0] << " file1 file2 x y width height (over|multiply) outputfile` to comp file2 onto file1 at the given position/dimensions, then save into outputfile\n";
