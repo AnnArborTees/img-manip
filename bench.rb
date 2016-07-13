@@ -1,7 +1,7 @@
-MOCKBOT_ADD = "bin/mockbot test/blankshirt.png test/tcb_spies14x16.png 409 192 665 760 over test/out1.png"
+MOCKBOT_ADD = "bin/mockbot composite test/blankshirt.png test/tcb_spies14x16.png 409 192 665 760 over test/out1.png"
 MAGICK_ADD  = "convert -composite test/blankshirt.png test/tcb_spies14x16.png -alpha on -geometry 665x760+409+192 -depth 8 test/out.png"
 
-MOCKBOT_MULT = "bin/mockbot test/blankshirt.png test/tcb_spies14x16.png 409 192 665 760 multiply test/out1.png"
+MOCKBOT_MULT = "bin/mockbot composite test/blankshirt.png test/tcb_spies14x16.png 409 192 665 760 multiply test/out1.png"
 MAGICK_MULT  = "convert -composite test/blankshirt.png test/tcb_spies14x16.png -compose multiply -alpha on -geometry 665x760+409+192 -depth 8 test/out.png"
 
 ITERATIONS = 10.0

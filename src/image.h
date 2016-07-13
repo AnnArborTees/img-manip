@@ -3,6 +3,7 @@
 #include <zlib.h>
 #include <pngconf.h>
 #include <functional>
+#include <string>
 
 // Accepted color types:
 #define COLOR_TYPE_RGBA 6
@@ -50,21 +51,47 @@ namespace mockbot {
         Image();
         ~Image();
 
+        // Returns a pointer to the red component of the pixel at x,y.
+        // Returns garbage if a file hasn't been loaded yet.
         uint8_t* pixel(int x, int y);
 
+        // Decodes and loads the given file into image_data
         bool load_file(FILE* input);
+
+        // Allocates new image_data with just the given color
+        bool fill_blank(std::string hexcode, int width, int height);
+        bool fill_blank(uint8_t* color_pixel, int width, int height);
+
+        // Returns true if the image has been loaded with load_file or fill_blank.
+        bool loaded();
+
+        // Converts non-transparency images to transparency using the first pixel as the "background" color.
+        // Does nothing to images with transparency.
         bool make_background_transparent();
+
+        // Sets background color to the given hexcode. Returns false if the image has no transparency.
+        // NOTE this is currently unused.
+        bool set_background_to(std::string hexcode, Compositor* func);
+
         // Composites image data of other onto image data this, modifying this->image_data
         bool composite(Image& other, int x, int y, int width, int height, Compositor* func);
+
+        // Encodes and writes image_data to the given file
         bool save(FILE* output);
+
+        // Returns the reason the previous method returned false (currently only works after load_file())
+        std::string last_error();
+
+        // Frees image_data if needed
         void cleanup();
 
-    private:
-        uint8_t* image_data;
         uint32_t width;
         uint32_t height;
+    private:
+        uint8_t* image_data;
         int bit_depth;
         int color_type;
         int bytes_per_pixel;
+        std::string error;
     };
 }
