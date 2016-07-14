@@ -112,6 +112,11 @@ int perform_composite(int argc, char** argv) {
 // (11): artwork height
 // (12): output file name
 int perform_thumbnail(int argc, char** argv) {
+    if (argc != 13) {
+        std::cerr << "Expected exactly 12 arguments after 'thumbnail'\n";
+        return 1;
+    }
+
     CompositeOver     composite_over;
     CompositeMultiply composite_multiply;
 
