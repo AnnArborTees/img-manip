@@ -1,3 +1,4 @@
+#include "character_set.h"
 #include <inttypes.h>
 #include <png.h>
 #include <zlib.h>
@@ -10,11 +11,6 @@
 #define COLOR_TYPE_RGB  2
 
 namespace mockbot {
-    enum CompositeOp {
-        COMP_OVER,
-        COMP_MULTIPLY
-    };
-
     struct ImageWrite {
         ImageWrite();
         ~ImageWrite();
@@ -22,7 +18,6 @@ namespace mockbot {
         png_structp png;
         png_infop info;
     };
-
     struct ImageRead {
         ImageRead();
         ~ImageRead();
@@ -35,12 +30,10 @@ namespace mockbot {
         virtual double blend_color(double, double, double, double, double) = 0;
         virtual double blend_alpha(double, double) = 0;
     };
-
     class CompositeOver : public Compositor {
         virtual double blend_color(double srcc, double srca, double dstc, double dsta, double omsrca);
         virtual double blend_alpha(double srca, double dsta);
     };
-
     class CompositeMultiply : public Compositor {
         virtual double blend_color(double srcc, double srca, double dstc, double dsta, double omsrca);
         virtual double blend_alpha(double srca, double dsta);
@@ -75,6 +68,12 @@ namespace mockbot {
 
         // Composites image data of other onto image data this, modifying this->image_data
         bool composite(Image& other, int x, int y, int width, int height, Compositor* func);
+
+        // More advanced composite that will only copy a section of other onto this
+        bool composite(Image& other, int blit_x, int blit_y, int blit_width, int blit_height, int x, int y, int width, int height, Compositor* func);
+
+        // More advanced composite that will only copy a section of other onto this
+        bool composite(Image& other, CharacterOffsets* offests, int x, int y, int width, int height, Compositor* func);
 
         // Encodes and writes image_data to the given file
         bool save(FILE* output);

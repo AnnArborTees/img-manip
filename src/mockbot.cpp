@@ -1,7 +1,7 @@
 #include <string>
 #include <iostream>
 #include "image.h"
-#include "stdio.h"
+#include <stdio.h>
 
 using namespace mockbot;
 
@@ -216,6 +216,64 @@ do {                                                                            
         return 0;
 }
 
+int perform_text(int argc, char** argv) {
+    // TODO this is a pretty big operation. I'm gonna try and split into littler ones so I can test them easier
+/*
+    Image canvas; // TODO load it somehow
+
+    CharacterSet charset("test/charset.json");
+    Image atlas;
+    atlas.load_file("test/charset.png");
+
+    //
+    // These consts should be user input
+    //
+    const int padding = 5; // Space between each pixel
+    const char* input_string = "test text";
+    const int region_x = 50;
+    const int region_y = 50;
+    const int region_width = 400;
+    const int region_height = 100;
+
+    int center_x = region_x + region_height / 2;
+    int center_y = region_y + region_width / 2;
+
+    int total_text_width = 0;
+    int total_text_height = 0;
+    for (char* c = input_string; *c != '\0'; c++) {
+        CharacterOffsets* offsets = charset[*c];
+
+        total_text_width += offsets->width;
+        total_text_height = offsets->height > total_text_height ? offsets->height : total_text_height;
+    }
+
+    int char_x = region_x; // This will increment by character width + padding each character
+    int char_y; // This will have to be calculated per-character to keep everything vertically centered
+
+    for (char* c = input_string; *c != '\0'; c++) {
+        CharacterOffsets* offsets = charset[*c];
+
+
+        canvas.composite(atlas, offsets, char_x, char_y, somehow_decide_dimensions_on_target_image);
+    }
+    */
+
+    return 111;
+}
+
+// We'll make this print a single letter onto the center of a blank image I guess
+int perform_letter(int argc, char** argv) {
+    CharacterSet charset;
+    FILE* json_file = fopen("test/cherset.json", "r");
+    if (!json_file) {
+        std::cerr << "no json\n";
+        return 2;
+    }
+    charset.load_json(json_file);
+
+    return 1;
+};
+
 int main(int argc, char** argv) {
     const char* subcommand = NULL;
 
@@ -226,6 +284,8 @@ int main(int argc, char** argv) {
 
     if      (cstr_eq(subcommand, "composite")) return perform_composite(argc - 1, argv + 1);
     else if (cstr_eq(subcommand, "thumbnail")) return perform_thumbnail(argc - 1, argv + 1);
+    else if (cstr_eq(subcommand, "text"))      return perform_text(argc - 1, argv + 1);
+    else if (cstr_eq(subcommand, "letter"))    return perform_letter(argc - 1, argv + 1);
 
 bad_subcommand:
     std::cerr << "Please specify a subcommand: \"composite\" or \"thumbnail\"\n";

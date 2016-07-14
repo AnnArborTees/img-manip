@@ -317,15 +317,15 @@ namespace mockbot {
     }
 
     //
-    // Copy other's pixels onto this's pixels at the given coordinates and size
+    // Copies a section of other's pixels onto this's pixels at the given coordinates and size
     //
-    bool Image::composite(Image& other, int other_x, int other_y, int other_new_width, int other_new_height, Compositor* comp) {
+    bool Image::composite(Image& other, int blit_x, int blit_y, int blit_width, int blit_height, int other_x, int other_y, int other_new_width, int other_new_height, Compositor* comp) {
         int rowbytes = width * bytes_per_pixel;
 
         // Number of big-image pixels per little-image pixel
         // (big-image being unmodified `other`, little-image being `other` resized to `other_new_width` by `other_new_height`)
-        double x_old_per_new = double(other.width)  / double(other_new_width);
-        double y_old_per_new = double(other.height) / double(other_new_height);
+        double x_old_per_new = double(blit_width)  / double(other_new_width);
+        double y_old_per_new = double(blit_height) / double(other_new_height);
 
         int max_x = other_x + other_new_width;
         int max_y = other_y + other_new_height;
@@ -344,8 +344,8 @@ namespace mockbot {
 
                 // a "new src" pixel probably refers to multiple "old src" pixels, so we want
                 // the average of those "old src" pixels.
-                double oldsrc_x_begin = double(x - other_x) * double(x_old_per_new);
-                double oldsrc_y_begin = double(y - other_y) * double(y_old_per_new);
+                double oldsrc_x_begin = double(x - other_x + blit_x) * double(x_old_per_new);
+                double oldsrc_y_begin = double(y - other_y + blit_y) * double(y_old_per_new);
                 double oldsrc_x_end = oldsrc_x_begin + x_old_per_new;
                 double oldsrc_y_end = oldsrc_y_begin + y_old_per_new;
 
@@ -403,6 +403,17 @@ namespace mockbot {
         }
 
         return true;
+    }
+
+    //
+    // Copy other's pixels onto this's pixels at the given coordinates and size
+    //
+    bool Image::composite(Image& other, int other_x, int other_y, int other_new_width, int other_new_height, Compositor* comp) {
+        return composite(other, 0, 0, other.width, other.height, other_x, other_y, other_new_width, other_new_height, comp);
+    }
+
+    bool Image::composite(Image& other, CharacterOffsets* offsets, int other_x, int other_y, int other_new_width, int other_new_height, Compositor* comp) {
+        return composite(other, offsets->x, offsets->y, offsets->width, offsets->height, other_x, other_y, other_new_width, other_new_height, comp);
     }
 
     std::string Image::last_error() {
