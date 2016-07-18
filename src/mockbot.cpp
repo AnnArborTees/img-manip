@@ -24,6 +24,13 @@ bool cstr_eq(const char* s1, const char* s2) {
     }
 }
 
+int int_arg(char* arg) {
+    if (cstr_eq(arg, "--"))
+        return -1;
+    else
+        return atoi(arg);
+}
+
 int perform_composite(int argc, char** argv) {
     if (argc == 9) {
         Image img1;
@@ -216,49 +223,138 @@ do {                                                                            
         return 0;
 }
 
+// Syntax:
+//           (0)  (1)     (2)            (3)           (4)              (5) (6) (7) (8) (9)
+//   mockbot text "Hello" img/canvas.png img/chars.png img/charset.json 100 100 300 120 ing/output.png
+//
+// (0):  subcommand - always 'text'
+// (1):  the text to print onto the image
+// (2):  image on which to print the text
+// (3):  image containing the letters
+// (4):  json document describing where each letter is on (2)
+// (5):  x coordinate on (2) of the center of the text
+// (6):  y coordinate on (2) of the center of the text
+// (7):  width of text region (can be "--" to be any width)
+// (8):  height of text region (can be "--" to be any height)
+// (9):  file to save the result to
 int perform_text(int argc, char** argv) {
-    // TODO this is a pretty big operation. I'm gonna try and split into littler ones so I can test them easier
-/*
-    Image canvas; // TODO load it somehow
+    Image canvas;
+    FILE* canvas_file = fopen(argv[2], "rb");
+    bool success = canvas.load_file(canvas_file);
+    if (canvas_file) fclose(canvas_file);
 
-    CharacterSet charset("test/charset.json");
+    if (!success) {
+        std::cout << "Failed to load canvas\n";
+        return 1;
+    }
+
     Image atlas;
-    atlas.load_file("test/charset.png");
+    FILE* atlas_file = fopen(argv[3], "rb");
+    success = atlas.load_file(atlas_file);
+    if (atlas_file) fclose(atlas_file);
 
-    //
-    // These consts should be user input
-    //
-    const int padding = 5; // Space between each pixel
-    const char* input_string = "test text";
-    const int region_x = 50;
-    const int region_y = 50;
-    const int region_width = 400;
-    const int region_height = 100;
+    if (!success) {
+        std::cout << "Failed to load atlas\n";
+        return 1;
+    }
 
-    int center_x = region_x + region_height / 2;
-    int center_y = region_y + region_width / 2;
+    CharacterSet charset;
+    FILE* charset_file = fopen(argv[4], "r");
+    success = charset.load_json(charset_file);
+    if (charset_file) fclose(charset_file);
 
-    int total_text_width = 0;
+    if (!success) {
+        std::cout << "Failed to load charset JSON\n";
+        return 2;
+    }
+
+    // const int padding = 5; // Space between each pixel ???
+    char* input_string = argv[1];
+    const int center_x = int_arg(argv[5]);
+    const int center_y = int_arg(argv[6]);
+    const int region_width  = int_arg(argv[7]);
+    const int region_height = int_arg(argv[8]);
+
+    if (region_width < 0 && region_height < 0) {
+        std::cout << "Please specify at least a width or a height\n";
+        return 6;
+    }
+
+    int total_text_width  = 0;
     int total_text_height = 0;
-    for (char* c = input_string; *c != '\0'; c++) {
-        CharacterOffsets* offsets = charset[*c];
-
-        total_text_width += offsets->width;
-        total_text_height = offsets->height > total_text_height ? offsets->height : total_text_height;
-    }
-
-    int char_x = region_x; // This will increment by character width + padding each character
-    int char_y; // This will have to be calculated per-character to keep everything vertically centered
+    // TODO do we need this?
+    CharacterOffsets* tallest_offset;
 
     for (char* c = input_string; *c != '\0'; c++) {
         CharacterOffsets* offsets = charset[*c];
 
-
-        canvas.composite(atlas, offsets, char_x, char_y, somehow_decide_dimensions_on_target_image);
+        if (offsets->width >= 0)
+            total_text_width += offsets->width;
+        if (offsets->height >= 0) {
+            if (offsets->height > total_text_height) {
+                tallest_offset = offsets;
+                total_text_height = offsets->height;
+            }
+        }
     }
-    */
 
-    return 111;
+    int actual_region_width, actual_region_height;
+
+    // We take our "total text" width/height and scale it down to fit within the given region
+    if (region_width < 0) {
+        // Scale total height to match region height
+        double total_w_by_h = (double)total_text_width / (double)total_text_height;
+        actual_region_width  = int((double)region_height * total_w_by_h);
+        actual_region_height = int((double)actual_region_width / total_w_by_h);
+    }
+    else if (region_height < 0) {
+        double total_h_by_w = (double)total_text_height / (double)total_text_width;
+        actual_region_height = int((double)region_width * total_h_by_w);
+        actual_region_width  = int((double)actual_region_height / total_h_by_w);
+    }
+    else {
+        double total_w_by_h  = (double)total_text_width / (double)total_text_height;
+        double region_w_by_h = (double)region_width     / (double)region_height;
+
+        if (total_w_by_h > region_w_by_h) {
+            // We need to scale down by width
+            actual_region_height = int((double)region_width / total_w_by_h);
+            actual_region_width = int((double)actual_region_height * total_w_by_h);
+        }
+        else {
+            // We scale down by height
+            actual_region_width = int((double)region_height * total_w_by_h);
+            actual_region_height = int((double)actual_region_width / total_w_by_h);
+        }
+    }
+
+    double text_scale = (double)actual_region_width / (double)total_text_width;
+
+    int char_x = center_x - actual_region_width / 2; // This will increment by character width each character
+    int char_y = center_y - actual_region_height / 2; // This will stay the same I suppose
+    CompositeOver comp;
+
+    for (char* c = input_string; *c != '\0'; c++) {
+        CharacterOffsets* offsets = charset[*c];
+        if (offsets->x < 0 || offsets->y < 0) {
+            continue;
+        }
+        int char_width  = int((double)offsets->width  * text_scale);
+        int char_height = int((double)offsets->height * text_scale);
+
+        canvas.composite(atlas, offsets, char_x, char_y, char_width, char_height, &comp);
+        char_x += char_width;
+    }
+
+    FILE* output = fopen(argv[9], "wb");
+    success = canvas.save(output);
+    fclose(output);
+    if (!success) {
+        std::cerr << "Couldn't save to " << output << '\n';
+        return 1;
+    }
+
+    return 0;
 }
 
 // We'll make this print a single letter onto the center of a blank image I guess
@@ -336,6 +432,6 @@ int main(int argc, char** argv) {
     else if (cstr_eq(subcommand, "letter"))    return perform_letter(argc - 1, argv + 1);
 
 bad_subcommand:
-    std::cerr << "Please specify a subcommand: \"composite\" or \"thumbnail\"\n";
+    std::cerr << "Invalid subcommand \"" << subcommand << "\"\n";
     return 1;
 }

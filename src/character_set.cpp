@@ -22,7 +22,6 @@ namespace mockbot {
     }
 
     CharacterOffsets* CharacterSet::operator[](char c) {
-        std::cout << "READING " << (uint64_t)&offsets[c] << '\n';
         return &offsets[c];
     }
 
@@ -59,7 +58,8 @@ namespace mockbot {
             NEXT_VALUE(next,  y);
             NEXT_VALUE(next,  width);
             NEXT_VALUE(next,  height);
-            std::cout << "READ OFFSET: " << offset->x << ", " << offset->y << " INTO " << (uint64_t)offset << '\n';
+            offset->x /= 2;
+            offset->y /= 2;
 
             entry = entry->next;
         }
