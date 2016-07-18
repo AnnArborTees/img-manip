@@ -263,15 +263,62 @@ int perform_text(int argc, char** argv) {
 
 // We'll make this print a single letter onto the center of a blank image I guess
 int perform_letter(int argc, char** argv) {
+    CompositeOver comp;
+
     CharacterSet charset;
-    FILE* json_file = fopen("test/cherset.json", "r");
+    FILE* json_file = fopen("test/charset.json", "r");
     if (!json_file) {
         std::cerr << "no json\n";
         return 2;
     }
-    charset.load_json(json_file);
 
-    return 1;
+    bool loaded_successfully = charset.load_json(json_file);
+    fclose(json_file);
+
+    if (!loaded_successfully) {
+        std::cerr << "invalid characterset JSON\n";
+        return 3;
+    }
+
+    Image atlas;
+    FILE* image_file = fopen("test/charset.png", "rb");
+    if (!image_file) {
+        std::cerr << "no image\n";
+        return 2;
+    }
+
+    loaded_successfully = atlas.load_file(image_file);
+    fclose(image_file);
+
+    if (!loaded_successfully) {
+        std::cerr << "failed to load test/charset.png\n";
+        return 4;
+    }
+
+    Image canvas;
+    canvas.fill_blank("#AAAAAA", 600, 600);
+
+    auto offsets = charset['a'];
+    if (offsets->x < 0 || offsets->y < 0) {
+        std::cerr << "bad offset\n";
+        return 7;
+    }
+    std::cout << "x: " << offsets->x << " y: " << offsets->y << '\n';
+    if (!canvas.composite(atlas, offsets, 50, 50, offsets->width, offsets->height, &comp)) {
+        std::cerr << "failed to composite\n";
+        return 5;
+    }
+
+    FILE* outFile = fopen("test/letter-result.png", "wb");
+    bool saved = canvas.save(outFile);
+    fclose(outFile);
+
+    if (!saved) {
+        std::cerr << "failed to encode\n";
+        return 6;
+    }
+
+    return 0;
 };
 
 int main(int argc, char** argv) {
@@ -285,6 +332,7 @@ int main(int argc, char** argv) {
     if      (cstr_eq(subcommand, "composite")) return perform_composite(argc - 1, argv + 1);
     else if (cstr_eq(subcommand, "thumbnail")) return perform_thumbnail(argc - 1, argv + 1);
     else if (cstr_eq(subcommand, "text"))      return perform_text(argc - 1, argv + 1);
+    // NOTE "letter" is just for testing
     else if (cstr_eq(subcommand, "letter"))    return perform_letter(argc - 1, argv + 1);
 
 bad_subcommand:
