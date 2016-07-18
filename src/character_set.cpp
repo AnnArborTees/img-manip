@@ -58,8 +58,9 @@ namespace mockbot {
             NEXT_VALUE(next,  y);
             NEXT_VALUE(next,  width);
             NEXT_VALUE(next,  height);
-            offset->x /= 2;
-            offset->y /= 2;
+            // TODO not 100% sure why doing this causes it to work :(
+            // offset->x /= 2;
+            // offset->y /= 2;
 
             entry = entry->next;
         }

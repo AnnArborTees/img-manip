@@ -304,13 +304,15 @@ int perform_text(int argc, char** argv) {
     if (region_width < 0) {
         // Scale total height to match region height
         double total_w_by_h = (double)total_text_width / (double)total_text_height;
-        actual_region_width  = int((double)region_height * total_w_by_h);
-        actual_region_height = int((double)actual_region_width / total_w_by_h);
+        actual_region_height = region_height;
+        actual_region_width  = int((double)actual_region_height * total_w_by_h);
+        std::cout << "Width not supplied - scaling down by height\n";
     }
     else if (region_height < 0) {
         double total_h_by_w = (double)total_text_height / (double)total_text_width;
-        actual_region_height = int((double)region_width * total_h_by_w);
-        actual_region_width  = int((double)actual_region_height / total_h_by_w);
+        actual_region_width  = region_width;
+        actual_region_height = int((double)actual_region_width * total_h_by_w);
+        std::cout << "Height not supplied - scaling down by width\n";
     }
     else {
         double total_w_by_h  = (double)total_text_width / (double)total_text_height;
@@ -318,13 +320,15 @@ int perform_text(int argc, char** argv) {
 
         if (total_w_by_h > region_w_by_h) {
             // We need to scale down by width
-            actual_region_height = int((double)region_width / total_w_by_h);
-            actual_region_width = int((double)actual_region_height * total_w_by_h);
+            actual_region_width  = region_width;
+            actual_region_height = int((double)actual_region_width / total_w_by_h);
+            std::cout << "Scaling down by width\n";
         }
         else {
             // We scale down by height
-            actual_region_width = int((double)region_height * total_w_by_h);
-            actual_region_height = int((double)actual_region_width / total_w_by_h);
+            actual_region_height = region_height;
+            actual_region_width  = int((double)actual_region_height * total_w_by_h);
+            std::cout << "Scaling down by height\n";
         }
     }
 

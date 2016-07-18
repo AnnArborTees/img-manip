@@ -344,8 +344,8 @@ namespace mockbot {
 
                 // a "new src" pixel probably refers to multiple "old src" pixels, so we want
                 // the average of those "old src" pixels.
-                double oldsrc_x_begin = double(x - other_x + blit_x) * double(x_old_per_new);
-                double oldsrc_y_begin = double(y - other_y + blit_y) * double(y_old_per_new);
+                double oldsrc_x_begin = double(x - other_x) * double(x_old_per_new) + blit_x;
+                double oldsrc_y_begin = double(y - other_y) * double(y_old_per_new) + blit_y;
                 double oldsrc_x_end = oldsrc_x_begin + x_old_per_new;
                 double oldsrc_y_end = oldsrc_y_begin + y_old_per_new;
 
