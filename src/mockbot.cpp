@@ -2,6 +2,8 @@
 #include <iostream>
 #include "image.h"
 #include <stdio.h>
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 using namespace mockbot;
 
@@ -280,23 +282,9 @@ int perform_text(int argc, char** argv) {
         return 6;
     }
 
-    int total_text_width  = 0;
-    int total_text_height = 0;
-    // TODO do we need this?
-    CharacterOffsets* tallest_offset;
-
-    for (char* c = input_string; *c != '\0'; c++) {
-        CharacterOffsets* offsets = charset[*c];
-
-        if (offsets->width >= 0)
-            total_text_width += offsets->width;
-        if (offsets->height >= 0) {
-            if (offsets->height > total_text_height) {
-                tallest_offset = offsets;
-                total_text_height = offsets->height;
-            }
-        }
-    }
+    int total_text_width;
+    int total_text_height;
+    charset.get_dimensions(input_string, &total_text_width, &total_text_height);
 
     int actual_region_width, actual_region_height;
 
@@ -359,6 +347,123 @@ int perform_text(int argc, char** argv) {
     }
 
     return 0;
+}
+
+#define DEGREES(x) (double(x) * (M_PI / 180.0))
+
+int perform_arctext(int argc, char** argv) {
+    CompositeOver comp;
+
+    char* input_string = argv[1];
+
+    CharacterSet charset;
+    {
+        FILE* json_file = fopen("test/charset.json", "r");
+        if (!json_file) {
+            std::cerr << "no json\n";
+            return 2;
+        }
+
+        charset.load_json(json_file);
+        fclose(json_file);
+    }
+
+    Image atlas;
+    {
+        FILE* image_file = fopen("test/charset.png", "rb");
+        if (!image_file) {
+            std::cerr << "no image\n";
+            return 2;
+        }
+        atlas.load_file(image_file);
+        fclose(image_file);
+    }
+
+    Image canvas;
+    canvas.fill_blank("#AAAAAA", 600, 600);
+
+    // TODO this is mock user input
+    int center_y = 100;
+    int center_x = 100;
+    int text_height = 80;
+    int radius = 200;
+    int arc_length = 100; // This is the outer arc
+
+    int total_text_width;
+    int total_text_height;
+    charset.get_dimensions(input_string, &total_text_width, &total_text_height);
+    double text_scale = (double)text_height / (double)total_text_height;
+
+    int actual_text_width = int((double)total_text_width * text_scale);
+    int actual_text_height = text_height;
+
+    // All angles here will be in radians
+    // TODO we're ignoring `angle` for now
+    double angle = (double)arc_length / (double)radius;
+    if (angle > DEGREES(180)) {
+        std::cerr << "An arc > 180 degrees is not currently supported\n";
+        return 1;
+    }
+
+    double actual_text_angle = (double)actual_text_width / (double)radius;
+    std::cout << "actual_text_angle = " << (actual_text_angle * (180.0 / M_PI)) << "degrees\n";
+
+    double start_angle = DEGREES(180.0) + ((DEGREES(180) - actual_text_angle) / 2.0);
+    // TODO I'm not sure why this needs 10 degrees to look good
+    double char_angle = start_angle + DEGREES(10);
+
+    // TODO
+    // For now let's start by just drawing text and ignoring the text being too long
+    for (char* c = input_string; *c != '\0'; c++) {
+        CharacterOffsets* offsets = charset[*c];
+        int char_width  = int((double)offsets->width  * text_scale);
+        int char_height = int((double)offsets->height * text_scale);
+
+        int char_x = int(double(radius) * cos(char_angle))
+          + canvas.width / 2 // origin of circle at center of image
+          - char_width / 2;  // relative to center of character
+        int char_y = int(double(radius) * sin(char_angle))
+          + canvas.height / 2
+          - char_height / 2;
+
+        canvas.composite(atlas, offsets, char_x, char_y, char_width, char_height, &comp);
+        char_angle += (double)char_width / (double)radius;
+
+        /*
+        CharacterOffsets* offsets = charset[*c];
+        if (offsets->x < 0 || offsets->y < 0) {
+            continue;
+        }
+        int char_width  = int((double)offsets->width  * text_scale);
+        int char_height = int((double)offsets->height * text_scale);
+
+        canvas.composite(atlas, offsets, char_x, char_y, char_width, char_height, &comp);
+        char_x += char_width;
+        */
+    }
+    std::cout << "char_angle incremented by " << ((char_angle - start_angle) * (180.0 / M_PI)) << "degrees\n";
+
+    {
+        FILE* output_file = fopen("test/arctext-result.png", "wb");
+        bool success = canvas.save(output_file);
+        if (output_file) fclose(output_file);
+        if (!success) {
+            std::cerr << "Failed to save!!!\n";
+            return 2;
+        }
+    }
+
+    return 0;
+}
+
+int perform_ftext(int argc, char** argv) {
+    /*
+    Magick::Image canvas(argv[0]);
+    int width = canvas.columns();
+    int height = canvas.rows();
+    */
+    std::cerr << "Psych no ftext yet\n";
+    return 1;
 }
 
 // We'll make this print a single letter onto the center of a blank image I guess
@@ -432,7 +537,9 @@ int main(int argc, char** argv) {
     if      (cstr_eq(subcommand, "composite")) return perform_composite(argc - 1, argv + 1);
     else if (cstr_eq(subcommand, "thumbnail")) return perform_thumbnail(argc - 1, argv + 1);
     else if (cstr_eq(subcommand, "text"))      return perform_text(argc - 1, argv + 1);
-    // NOTE "letter" is just for testing
+    else if (cstr_eq(subcommand, "ftext"))     return perform_ftext(argc - 1, argv + 1);
+    else if (cstr_eq(subcommand, "arctext"))   return perform_arctext(argc - 1, argv + 1);
+    // NOTE "letter" is just for testing and doesn't actually read arguments
     else if (cstr_eq(subcommand, "letter"))    return perform_letter(argc - 1, argv + 1);
 
 bad_subcommand:
