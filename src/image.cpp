@@ -1,7 +1,11 @@
 #include "image.h"
+#include <Magick++.h>
 #include <memory>
 #include <stdlib.h>
-#include <cmath>
+#define _USE_MATH_DEFINES
+#include <math.h>
+// NOTE iostream for debugging only here
+#include <iostream>
 
 #define PNG_CATCH(png) if (setjmp(png_jmpbuf(png)))
 
@@ -10,7 +14,7 @@ namespace mockbot {
     // These are some static helper methods used throughout
     //
 
-    static const uint8_t empty_pixel[] = { 0xFF, 0xFF, 0xFF, 0x00 };
+    static uint8_t empty_pixel[] = { 0xFF, 0xFF, 0xFF, 0x00 };
 
     static bool pixel_eq(uint8_t* p1, uint8_t* p2, int bytes_per_pixel) {
         return p1[0] == p2[0] &&
@@ -210,7 +214,7 @@ namespace mockbot {
         height          = new_height;
         bit_depth       = 8;
         color_type      = COLOR_TYPE_RGBA;
-        bytes_per_pixel = 3;
+        bytes_per_pixel = bg_pixel[3] == 0xFF ? 3 : 4;
 
         image_data = (uint8_t*)malloc(width * height * bytes_per_pixel);
 
@@ -276,6 +280,11 @@ namespace mockbot {
     uint8_t* Image::pixel(int x, int y) {
         int rowbytes = width * bytes_per_pixel;
         return &image_data[(x * bytes_per_pixel) + (y * rowbytes)];
+    }
+
+    uint8_t* Image::pixel(vec2& pos) {
+        int rowbytes = width * bytes_per_pixel;
+        return &image_data[((int)pos.x * bytes_per_pixel) + ((int)pos.y * rowbytes)];
     }
 
     bool Image::set_background_to(std::string hexcode, Compositor* comp) {
@@ -416,6 +425,73 @@ namespace mockbot {
         return composite(other, offsets->x, offsets->y, offsets->width, offsets->height, other_x, other_y, other_new_width, other_new_height, comp);
     }
 
+    Image Image::rotated(int blit_x, int blit_y, int blit_width, int blit_height, double angle) {
+        using Magick::Quantum;
+        using Magick::Color;
+        using Magick::Geometry;
+        using Magick::PixelPacket;
+
+        Color    clear(0,0,0,0);
+        Geometry size(blit_width, blit_height);
+
+        Magick::Image m_image(size, clear);
+        m_image.magick("RGBA");
+        m_image.modifyImage();
+
+        {
+            Magick::Pixels m_image_pixels(m_image);
+
+            int max_y = blit_y + blit_height;
+            int max_x = blit_x + blit_width;
+
+            PixelPacket* dest_pixel = m_image_pixels.get(0, 0, blit_width, blit_height);
+
+            for (int y = blit_y; y < max_y; y++) {
+                for (int x = blit_x; x < max_x; x++) {
+                    uint8_t* src_pixel = pixel(x, y);
+
+                    *dest_pixel = Color(
+                        (Quantum)src_pixel[0],
+                        (Quantum)src_pixel[1],
+                        (Quantum)src_pixel[2],
+                        (bytes_per_pixel == 3 ? MaxRGB : (Quantum)src_pixel[3]) - 1
+                    );
+
+                    ++dest_pixel;
+                }
+            }
+        }
+
+        m_image.rotate((angle * (180.0 / M_PI)) + 90.0);
+
+        Image result;
+        result.fill_blank((uint8_t*)empty_pixel, m_image.columns(), m_image.rows());
+
+        {
+            Magick::Pixels m_image_pixels(m_image);
+
+            PixelPacket* src_pixel = m_image_pixels.get(0, 0, result.width, result.height);
+
+            for (int y = 0; y < result.height; y++) {
+                for (int x = 0; x < result.width; x++) {
+                    uint8_t* dest_pixel = result.pixel(x, y);
+
+                    dest_pixel[0] = (uint8_t)src_pixel->red;
+                    dest_pixel[1] = (uint8_t)src_pixel->green;
+                    dest_pixel[2] = (uint8_t)src_pixel->blue;
+                    dest_pixel[3] = (uint8_t)src_pixel->opacity;
+
+                    ++src_pixel;
+                }
+            }
+        }
+
+        return result;
+    }
+    Image Image::rotated(CharacterOffsets* offsets, double angle) {
+        return rotated(offsets->x, offsets->y, offsets->width, offsets->height, angle);
+    }
+
     std::string Image::last_error() {
         return error;
     }
@@ -432,5 +508,25 @@ namespace mockbot {
     }
     double CompositeMultiply::blend_alpha(double srca, double dsta) {
         return dsta + srca;
+    }
+
+
+    vec2::vec2() : x(0), y(0) {
+    }
+    vec2::vec2(double x, double y) : x(x), y(y) {
+    }
+
+    mat2x2::mat2x2() : a11(0), a12(0), a21(0), a22(0) {
+    }
+    mat2x2::mat2x2(double a11, double a12, double a21, double a22)
+        : a11(a11), a12(a12),
+          a21(a21), a22(a22)
+    {}
+
+    vec2 mat2x2::operator*(vec2 v) {
+        return vec2(
+            a11 * v.x + a12 * v.y,
+            a21 * v.x + a12 * v.y
+        );
     }
 }

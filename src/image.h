@@ -11,6 +11,29 @@
 #define COLOR_TYPE_RGB  2
 
 namespace mockbot {
+    union vec2 {
+        struct { double x, y; };
+        double s[2];
+
+        vec2();
+        vec2(double a, double b);
+    };
+    // Column major
+    union mat2x2 {
+        struct {
+            double a11;
+            double a12;
+
+            double a21;
+            double a22;
+        };
+        double a[4];
+
+        mat2x2();
+        mat2x2(double a11, double a12, double a21, double a22);
+        vec2 operator*(vec2 x);
+    };
+
     struct ImageWrite {
         ImageWrite();
         ~ImageWrite();
@@ -48,6 +71,9 @@ namespace mockbot {
         // Returns garbage if a file hasn't been loaded yet.
         uint8_t* pixel(int x, int y);
 
+        // Returns garbage if a file hasn't been loaded yet.
+        uint8_t* pixel(vec2& pos);
+
         // Decodes and loads the given file into image_data
         bool load_file(FILE* input);
 
@@ -74,6 +100,10 @@ namespace mockbot {
 
         // More advanced composite that will only copy a section of other onto this
         bool composite(Image& other, CharacterOffsets* offests, int x, int y, int width, int height, Compositor* func);
+
+        // Returns a new image which is a copy of this one, rotated about its center by `angle` radians
+        Image rotated(int blit_x, int blit_y, int blit_width, int blit_height, double angle);
+        Image rotated(CharacterOffsets* offsets, double angle);
 
         // Encodes and writes image_data to the given file
         bool save(FILE* output);

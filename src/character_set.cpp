@@ -25,11 +25,13 @@ namespace mockbot {
         return &offsets[c];
     }
 
-    void CharacterSet::get_dimensions(char* string, int* total_width, int* total_height) {
+    void CharacterSet::get_dimensions(char* string, int* total_width, int* total_height, int* len) {
         int total_text_width  = 0;
         int total_text_height = 0;
+        int str_len = 0;
 
         for (char* c = string; *c != '\0'; c++) {
+            str_len += 1;
             CharacterOffsets* offs = &offsets[*c];
 
             if (offs->width >= 0)
@@ -42,13 +44,11 @@ namespace mockbot {
 
         *total_width  = total_text_width;
         *total_height = total_text_height;
+        if (len)
+            *len = str_len;
     }
-    void CharacterSet::get_dimensions(const char* string, int* total_width, int* total_height) {
-        auto size = strlen(string) + 1;
-        char* s = (char*)malloc(size);
-        memcpy(s, string, size);
-        get_dimensions(s, total_width, total_height);
-        free(s);
+    void CharacterSet::get_dimensions(char* string, int* total_width, int* total_height) {
+        get_dimensions(string, total_width, total_height, NULL);
     }
 
     bool CharacterSet::load_json(FILE* input) {

@@ -380,7 +380,7 @@ int perform_arctext(int argc, char** argv) {
     }
 
     Image canvas;
-    canvas.fill_blank("#AAAAAA", 600, 600);
+    canvas.fill_blank("#FFFFFF", 600, 600);
 
     // TODO this is mock user input
     int center_y = 100;
@@ -391,7 +391,8 @@ int perform_arctext(int argc, char** argv) {
 
     int total_text_width;
     int total_text_height;
-    charset.get_dimensions(input_string, &total_text_width, &total_text_height);
+    int char_count;
+    charset.get_dimensions(input_string, &total_text_width, &total_text_height, &char_count);
     double text_scale = (double)text_height / (double)total_text_height;
 
     int actual_text_width = int((double)total_text_width * text_scale);
@@ -406,42 +407,31 @@ int perform_arctext(int argc, char** argv) {
     }
 
     double actual_text_angle = (double)actual_text_width / (double)radius;
-    std::cout << "actual_text_angle = " << (actual_text_angle * (180.0 / M_PI)) << "degrees\n";
 
-    double start_angle = DEGREES(180.0) + ((DEGREES(180) - actual_text_angle) / 2.0);
-    // TODO I'm not sure why this needs 10 degrees to look good
-    double char_angle = start_angle + DEGREES(10);
+    double start_angle = (DEGREES(180) - actual_text_angle) / 2.0;
+    double avg_angle_per_char = actual_text_angle / double(char_count);
+
+    double char_angle = DEGREES(180) + start_angle + avg_angle_per_char / 2.0;
 
     // TODO
     // For now let's start by just drawing text and ignoring the text being too long
     for (char* c = input_string; *c != '\0'; c++) {
         CharacterOffsets* offsets = charset[*c];
-        int char_width  = int((double)offsets->width  * text_scale);
-        int char_height = int((double)offsets->height * text_scale);
+        Image letter = atlas.rotated(offsets, char_angle);
+
+        int char_width  = int((double)letter.width  * text_scale);
+        int char_height = int((double)letter.height * text_scale);
 
         int char_x = int(double(radius) * cos(char_angle))
           + canvas.width / 2 // origin of circle at center of image
-          - char_width / 2;  // relative to center of character
+          - char_width / 2;  // origin of char at letter center
         int char_y = int(double(radius) * sin(char_angle))
           + canvas.height / 2
           - char_height / 2;
 
-        canvas.composite(atlas, offsets, char_x, char_y, char_width, char_height, &comp);
-        char_angle += (double)char_width / (double)radius;
-
-        /*
-        CharacterOffsets* offsets = charset[*c];
-        if (offsets->x < 0 || offsets->y < 0) {
-            continue;
-        }
-        int char_width  = int((double)offsets->width  * text_scale);
-        int char_height = int((double)offsets->height * text_scale);
-
-        canvas.composite(atlas, offsets, char_x, char_y, char_width, char_height, &comp);
-        char_x += char_width;
-        */
+        canvas.composite(letter, char_x, char_y, char_width, char_height, &comp);
+        char_angle += (double)offsets->width * text_scale / (double)radius;
     }
-    std::cout << "char_angle incremented by " << ((char_angle - start_angle) * (180.0 / M_PI)) << "degrees\n";
 
     {
         FILE* output_file = fopen("test/arctext-result.png", "wb");

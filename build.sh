@@ -7,7 +7,7 @@ else
 fi
 
 gcc -c -std=c99 -o lib/cJSON.o lib/cJSON.c
-g++ src/*.cpp lib/cJSON.o -std=c++11 -Ilib -lpng -o bin/mockbot $(echo $FLAGS) `Magick++-config --cxxflags --cppflags --ldflags --libs` -UMAGICKCORE_QUANTUM_DEPTH -DMAGICKCORE_QUANTUM_DEPTH=8
+g++ src/*.cpp lib/cJSON.o -std=c++11 -Ilib -lpng -o bin/mockbot $(echo $FLAGS) `Magick++-config --cxxflags --cppflags --ldflags --libs`
 
 if [ "$INSTALL" = "true" ]; then
   echo "Installing"
