@@ -228,9 +228,22 @@ do {                                                                            
         return 0;
 }
 
-std::unique_ptr<Image> letter_atlas;
+CompositeOver     composite_over;
+CompositeMultiply composite_multiply;
+Compositor*       last_compositor;
+
+std::unique_ptr<Image>        letter_atlas;
 std::unique_ptr<CharacterSet> charset;
-std::unique_ptr<Image> last_canvas;
+std::unique_ptr<Image>        last_canvas;
+
+Compositor* load_compositor(char* type) {
+    if (cstr_eq(type, "over"))
+        last_compositor = &composite_over;
+    else if (cstr_eq(type, "multiply"))
+        last_compositor = &composite_multiply;
+
+    return last_compositor;
+}
 
 Image* load_letter_atlas(char* filename) {
     if (cstr_eq(filename, "--"))
@@ -278,8 +291,8 @@ Image* load_canvas(char* filename) {
 }
 
 // Syntax:
-//           (0)  (1)     (2)            (3)           (4)              (5) (6) (7) (8) (9)
-//   mockbot text "Hello" img/canvas.png img/chars.png img/charset.json 100 100 300 120 ing/output.png
+//           (0)  (1)     (2)            (3)           (4)              (5) (6) (7) (8) (9)  (10)
+//   mockbot text "Hello" img/canvas.png img/chars.png img/charset.json 100 100 300 120 over img/output.png
 //
 // (0):  subcommand - always 'text'
 // (1):  the text to print onto the image
@@ -290,9 +303,10 @@ Image* load_canvas(char* filename) {
 // (6):  y coordinate on (2) of the center of the text
 // (7):  width of text region (can be "--" to be any width)
 // (8):  height of text region (can be "--" to be any height)
-// (9):  file to save the result to
+// (9):  composite method
+// (10): file to save the result to
 int perform_text(int argc, char** argv, int* args_used) {
-    *args_used = 10;
+    *args_used = 11;
 
     Image* canvas = load_canvas(argv[2]);
     if (!canvas) {
@@ -366,8 +380,8 @@ int perform_text(int argc, char** argv, int* args_used) {
 
     int char_x = center_x - actual_region_width / 2; // This will increment by character width each character
     int char_y = center_y - actual_region_height / 2; // This will stay the same I suppose
-    CompositeOver comp;
 
+    Compositor* comp = load_compositor(argv[9]);
     for (char* c = input_string; *c != '\0'; c++) {
         CharacterOffsets* offsets = (*charset)[*c];
         if (offsets->x < 0 || offsets->y < 0) {
@@ -376,12 +390,12 @@ int perform_text(int argc, char** argv, int* args_used) {
         int char_width  = int((double)offsets->width  * text_scale);
         int char_height = int((double)offsets->height * text_scale);
 
-        canvas->composite(*atlas, offsets, char_x, char_y, char_width, char_height, &comp);
+        canvas->composite(*atlas, offsets, char_x, char_y, char_width, char_height, comp);
         char_x += char_width;
     }
 
-    if (!cstr_eq(argv[9], "--")) {
-        FILE* output = fopen(argv[9], "wb");
+    if (!cstr_eq(argv[10], "--")) {
+        FILE* output = fopen(argv[10], "wb");
         bool success = canvas->save(output);
         fclose(output);
         if (!success) {
@@ -396,8 +410,8 @@ int perform_text(int argc, char** argv, int* args_used) {
 #define DEGREES(x) (double(x) * (M_PI / 180.0))
 
 // Syntax:
-//           (0)     (1)     (2)            (3)           (4)              (5) (6)  (7) (8) (9)
-//   mockbot arctext "Hello" img/canvas.png img/chars.png img/charset.json 100 100  200 110 img/output.png
+//           (0)     (1)     (2)            (3)           (4)              (5) (6)  (7) (8) (9)  (10)
+//   mockbot arctext "Hello" img/canvas.png img/chars.png img/charset.json 100 100  200 110 over img/output.png
 //
 // (0):  subcommand - always 'arctext'
 // (1):  the text to print onto the image
@@ -408,10 +422,10 @@ int perform_text(int argc, char** argv, int* args_used) {
 // (6):  y coordinate of circle center (or -- for center of image)
 // (7):  radius of circle
 // (8):  max height of text
-// (9):  output file
+// (9):  composition method ("over" or "multiply")
+// (10): output file
 int perform_arctext(int argc, char** argv, int* args_used) {
-    *args_used = 10;
-    CompositeOver comp;
+    *args_used = 11;
 
     char* input_string = argv[1];
 
@@ -455,6 +469,7 @@ int perform_arctext(int argc, char** argv, int* args_used) {
 
     double char_angle = DEGREES(180) + start_angle + avg_angle_per_char / 2.0;
 
+    Compositor* comp = load_compositor(argv[9]);
     for (char* c = input_string; *c != '\0'; c++) {
         CharacterOffsets* offsets = (*charset)[*c];
         Image letter = atlas->rotated(offsets, char_angle);
@@ -469,12 +484,12 @@ int perform_arctext(int argc, char** argv, int* args_used) {
           + center_y
           - char_height / 2;
 
-        canvas->composite(letter, char_x, char_y, char_width, char_height, &comp);
+        canvas->composite(letter, char_x, char_y, char_width, char_height, comp);
         char_angle += (double)offsets->width * text_scale / (double)radius;
     }
 
-    if (!cstr_eq(argv[9], "--")) {
-        FILE* output_file = fopen(argv[9], "wb");
+    if (!cstr_eq(argv[10], "--")) {
+        FILE* output_file = fopen(argv[10], "wb");
         bool success = canvas->save(output_file);
         if (output_file) fclose(output_file);
         if (!success) {
@@ -486,6 +501,18 @@ int perform_arctext(int argc, char** argv, int* args_used) {
     return 0;
 }
 
+// Syntax:
+//           (0)  (1)     (2)          
+//   mockbot text "Hello" img/canvas.png font/ariel.ttf x y w h img/output.png
+//
+// (0):  subcommand - always 'text'
+// (1):  the text to print onto the image
+// (2):  image on which to print the text                      TODO fix this up
+// (5):  x coordinate on (2) of the center of the text
+// (6):  y coordinate on (2) of the center of the text
+// (7):  width of text region (can be "--" to be any width)
+// (8):  height of text region (can be "--" to be any height)
+// (9):  file to save the result to
 int perform_ftext(int argc, char** argv, int* args_used) {
     *args_used = 0;
     /*
