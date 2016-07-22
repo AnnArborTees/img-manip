@@ -230,6 +230,7 @@ do {                                                                            
 
 std::unique_ptr<Image> letter_atlas;
 std::unique_ptr<CharacterSet> charset;
+std::unique_ptr<Image> last_canvas;
 
 Image* load_letter_atlas(char* filename) {
     if (cstr_eq(filename, "--"))
@@ -251,7 +252,7 @@ CharacterSet* load_charset(char* filename) {
         return charset.get();
 
     charset.reset(new CharacterSet);
-    FILE* file = fopen(filename, "rb");
+    FILE* file = fopen(filename, "r");
     bool success = charset->load_json(file);
     if (file) fclose(file);
 
@@ -259,6 +260,21 @@ CharacterSet* load_charset(char* filename) {
         return NULL;
 
     return charset.get();
+}
+
+Image* load_canvas(char* filename) {
+    if (cstr_eq(filename, "--"))
+        return last_canvas.get();
+
+    last_canvas.reset(new Image);
+    FILE* file = fopen(filename, "rb");
+    bool success = last_canvas->load_file(file);
+    if (file) fclose(file);
+
+    if (!success)
+        return NULL;
+
+    return last_canvas.get();
 }
 
 // Syntax:
@@ -278,25 +294,21 @@ CharacterSet* load_charset(char* filename) {
 int perform_text(int argc, char** argv, int* args_used) {
     *args_used = 10;
 
-    Image canvas;
-    FILE* canvas_file = fopen(argv[2], "rb");
-    bool success = canvas.load_file(canvas_file);
-    if (canvas_file) fclose(canvas_file);
-
-    if (!success) {
-        std::cout << "Failed to load canvas\n";
+    Image* canvas = load_canvas(argv[2]);
+    if (!canvas) {
+        std::cout << "Failed to load canvas at " << argv[2] << '\n';
         return 1;
     }
 
     Image* atlas = load_letter_atlas(argv[3]);
     if (!atlas) {
-        std::cout << "Failed to load letter atlas\n";
+        std::cout << "Failed to load letter atlas " << argv[3] << '\n';
         return 1;
     }
 
     CharacterSet* charset = load_charset(argv[4]);
     if (!charset) {
-        std::cout << "Failed to load charset JSON\n";
+        std::cout << "Failed to load charset JSON " << argv[4] << '\n';
         return 2;
     }
 
@@ -364,16 +376,18 @@ int perform_text(int argc, char** argv, int* args_used) {
         int char_width  = int((double)offsets->width  * text_scale);
         int char_height = int((double)offsets->height * text_scale);
 
-        canvas.composite(*atlas, offsets, char_x, char_y, char_width, char_height, &comp);
+        canvas->composite(*atlas, offsets, char_x, char_y, char_width, char_height, &comp);
         char_x += char_width;
     }
 
-    FILE* output = fopen(argv[9], "wb");
-    success = canvas.save(output);
-    fclose(output);
-    if (!success) {
-        std::cerr << "Couldn't save to " << output << '\n';
-        return 1;
+    if (!cstr_eq(argv[9], "--")) {
+        FILE* output = fopen(argv[9], "wb");
+        bool success = canvas->save(output);
+        fclose(output);
+        if (!success) {
+            std::cerr << "Couldn't save to " << output << '\n';
+            return 1;
+        }
     }
 
     return 0;
@@ -413,15 +427,10 @@ int perform_arctext(int argc, char** argv, int* args_used) {
         return 2;
     }
 
-    Image canvas;
-    {
-        FILE* image_file = fopen(argv[2], "rb");
-        if (!image_file) {
-            std::cerr << "no canvas image\n";
-            return 2;
-        }
-        canvas.load_file(image_file);
-        fclose(image_file);
+    Image* canvas = load_canvas(argv[2]);
+    if (!canvas) {
+        std::cerr << "Failed to load canvas at " << argv[2] << '\n';
+        return 3;
     }
 
     // TODO this is mock user input
@@ -446,8 +455,6 @@ int perform_arctext(int argc, char** argv, int* args_used) {
 
     double char_angle = DEGREES(180) + start_angle + avg_angle_per_char / 2.0;
 
-    // TODO
-    // For now let's start by just drawing text and ignoring the text being too long
     for (char* c = input_string; *c != '\0'; c++) {
         CharacterOffsets* offsets = (*charset)[*c];
         Image letter = atlas->rotated(offsets, char_angle);
@@ -462,13 +469,13 @@ int perform_arctext(int argc, char** argv, int* args_used) {
           + center_y
           - char_height / 2;
 
-        canvas.composite(letter, char_x, char_y, char_width, char_height, &comp);
+        canvas->composite(letter, char_x, char_y, char_width, char_height, &comp);
         char_angle += (double)offsets->width * text_scale / (double)radius;
     }
 
-    {
+    if (!cstr_eq(argv[9], "--")) {
         FILE* output_file = fopen(argv[9], "wb");
-        bool success = canvas.save(output_file);
+        bool success = canvas->save(output_file);
         if (output_file) fclose(output_file);
         if (!success) {
             std::cerr << "Failed to save!!!\n";
