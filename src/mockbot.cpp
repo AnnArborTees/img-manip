@@ -26,14 +26,15 @@ bool cstr_eq(const char* s1, const char* s2) {
     }
 }
 
-int int_arg(char* arg) {
+int positive_int_arg(char* arg) {
     if (cstr_eq(arg, "--"))
         return -1;
     else
         return atoi(arg);
 }
 
-int perform_composite(int argc, char** argv) {
+int perform_composite(int argc, char** argv, int* args_used) {
+    *args_used = 9;
     if (argc == 9) {
         Image img1;
         Image img2;
@@ -120,7 +121,8 @@ int perform_composite(int argc, char** argv) {
 // (10): artwork width (within its image - not the image dimensions)
 // (11): artwork height
 // (12): output file name
-int perform_thumbnail(int argc, char** argv) {
+int perform_thumbnail(int argc, char** argv, int* args_used) {
+    *args_used = 13;
     if (argc != 13) {
         std::cerr << "Expected exactly 12 arguments after 'thumbnail'\n";
         return 1;
@@ -239,7 +241,9 @@ do {                                                                            
 // (7):  width of text region (can be "--" to be any width)
 // (8):  height of text region (can be "--" to be any height)
 // (9):  file to save the result to
-int perform_text(int argc, char** argv) {
+int perform_text(int argc, char** argv, int* args_used) {
+    *args_used = 10;
+
     Image canvas;
     FILE* canvas_file = fopen(argv[2], "rb");
     bool success = canvas.load_file(canvas_file);
@@ -270,12 +274,12 @@ int perform_text(int argc, char** argv) {
         return 2;
     }
 
-    // const int padding = 5; // Space between each pixel ???
+    // const int padding = 5; // Space between each letter ???
     char* input_string = argv[1];
-    const int center_x = int_arg(argv[5]);
-    const int center_y = int_arg(argv[6]);
-    const int region_width  = int_arg(argv[7]);
-    const int region_height = int_arg(argv[8]);
+    const int center_x = positive_int_arg(argv[5]);
+    const int center_y = positive_int_arg(argv[6]);
+    const int region_width  = positive_int_arg(argv[7]);
+    const int region_height = positive_int_arg(argv[8]);
 
     if (region_width < 0 && region_height < 0) {
         std::cout << "Please specify at least a width or a height\n";
@@ -351,14 +355,29 @@ int perform_text(int argc, char** argv) {
 
 #define DEGREES(x) (double(x) * (M_PI / 180.0))
 
-int perform_arctext(int argc, char** argv) {
+// Syntax:
+//           (0)     (1)     (2)            (3)           (4)              (5) (6)  (7) (8) (9)
+//   mockbot arctext "Hello" img/canvas.png img/chars.png img/charset.json 100 100  200 110 img/output.png
+//
+// (0):  subcommand - always 'arctext'
+// (1):  the text to print onto the image
+// (2):  image on which to print the text
+// (3):  image containing the letters
+// (4):  json document describing where each letter is on (2)
+// (5):  x coordinate of circle center (or -- for center of image)
+// (6):  y coordinate of circle center (or -- for center of image)
+// (7):  radius of circle
+// (8):  max height of text
+// (9):  output file
+int perform_arctext(int argc, char** argv, int* args_used) {
+    *args_used = 10;
     CompositeOver comp;
 
     char* input_string = argv[1];
 
     CharacterSet charset;
     {
-        FILE* json_file = fopen("test/charset.json", "r");
+        FILE* json_file = fopen(argv[4], "r");
         if (!json_file) {
             std::cerr << "no json\n";
             return 2;
@@ -370,9 +389,9 @@ int perform_arctext(int argc, char** argv) {
 
     Image atlas;
     {
-        FILE* image_file = fopen("test/charset.png", "rb");
+        FILE* image_file = fopen(argv[3], "rb");
         if (!image_file) {
-            std::cerr << "no image\n";
+            std::cerr << "no charset image\n";
             return 2;
         }
         atlas.load_file(image_file);
@@ -380,14 +399,21 @@ int perform_arctext(int argc, char** argv) {
     }
 
     Image canvas;
-    canvas.fill_blank("#FFFFFF", 600, 600);
+    {
+        FILE* image_file = fopen(argv[2], "rb");
+        if (!image_file) {
+            std::cerr << "no canvas image\n";
+            return 2;
+        }
+        canvas.load_file(image_file);
+        fclose(image_file);
+    }
 
     // TODO this is mock user input
-    int center_y = 100;
-    int center_x = 100;
-    int text_height = 80;
-    int radius = 200;
-    int arc_length = 100; // This is the outer arc
+    int center_x    = atoi(argv[5]);
+    int center_y    = atoi(argv[6]);
+    int radius      = atoi(argv[7]);
+    int text_height = atoi(argv[8]);
 
     int total_text_width;
     int total_text_height;
@@ -397,14 +423,6 @@ int perform_arctext(int argc, char** argv) {
 
     int actual_text_width = int((double)total_text_width * text_scale);
     int actual_text_height = text_height;
-
-    // All angles here will be in radians
-    // TODO we're ignoring `angle` for now
-    double angle = (double)arc_length / (double)radius;
-    if (angle > DEGREES(180)) {
-        std::cerr << "An arc > 180 degrees is not currently supported\n";
-        return 1;
-    }
 
     double actual_text_angle = (double)actual_text_width / (double)radius;
 
@@ -423,10 +441,10 @@ int perform_arctext(int argc, char** argv) {
         int char_height = int((double)letter.height * text_scale);
 
         int char_x = int(double(radius) * cos(char_angle))
-          + canvas.width / 2 // origin of circle at center of image
+          + center_x
           - char_width / 2;  // origin of char at letter center
         int char_y = int(double(radius) * sin(char_angle))
-          + canvas.height / 2
+          + center_y
           - char_height / 2;
 
         canvas.composite(letter, char_x, char_y, char_width, char_height, &comp);
@@ -434,7 +452,7 @@ int perform_arctext(int argc, char** argv) {
     }
 
     {
-        FILE* output_file = fopen("test/arctext-result.png", "wb");
+        FILE* output_file = fopen(argv[9], "wb");
         bool success = canvas.save(output_file);
         if (output_file) fclose(output_file);
         if (!success) {
@@ -446,7 +464,8 @@ int perform_arctext(int argc, char** argv) {
     return 0;
 }
 
-int perform_ftext(int argc, char** argv) {
+int perform_ftext(int argc, char** argv, int* args_used) {
+    *args_used = 0;
     /*
     Magick::Image canvas(argv[0]);
     int width = canvas.columns();
@@ -457,7 +476,8 @@ int perform_ftext(int argc, char** argv) {
 }
 
 // We'll make this print a single letter onto the center of a blank image I guess
-int perform_letter(int argc, char** argv) {
+int perform_letter(int argc, char** argv, int* args_used) {
+    *args_used = 0;
     CompositeOver comp;
 
     CharacterSet charset;
@@ -516,23 +536,40 @@ int perform_letter(int argc, char** argv) {
     return 0;
 };
 
+bool run(int* pargc, char*** pargv) {
+    if ((*pargc) < 1)
+        return false;
+
+    const char* subcommand = (*pargv)[0];
+    int return_code;
+    int args_used;
+
+    if      (cstr_eq(subcommand, "composite")) return_code = perform_composite((*pargc), (*pargv), &args_used);
+    else if (cstr_eq(subcommand, "thumbnail")) return_code = perform_thumbnail((*pargc), (*pargv), &args_used);
+    else if (cstr_eq(subcommand, "text"))      return_code = perform_text((*pargc), (*pargv), &args_used);
+    else if (cstr_eq(subcommand, "ftext"))     return_code = perform_ftext((*pargc), (*pargv), &args_used);
+    else if (cstr_eq(subcommand, "arctext"))   return_code = perform_arctext((*pargc), (*pargv), &args_used);
+    else {
+        std::cerr << "Invalid subcommand \"" << subcommand << "\"\n";
+        return false;
+    }
+
+    if (return_code != 0) {
+        std::cerr << "Subcommand \"" << subcommand << "\" returned " << return_code << '\n';
+        return false;
+    }
+
+    *pargc -= args_used;
+    *pargv += args_used;
+
+    return true;
+}
+
 int main(int argc, char** argv) {
-    const char* subcommand = NULL;
+    // First arg is application path
+    argc -= 1;
+    argv += 1;
+    while (run(&argc, &argv)) {}
 
-    if (argc <= 1)
-        goto bad_subcommand;
-
-    subcommand = argv[1];
-
-    if      (cstr_eq(subcommand, "composite")) return perform_composite(argc - 1, argv + 1);
-    else if (cstr_eq(subcommand, "thumbnail")) return perform_thumbnail(argc - 1, argv + 1);
-    else if (cstr_eq(subcommand, "text"))      return perform_text(argc - 1, argv + 1);
-    else if (cstr_eq(subcommand, "ftext"))     return perform_ftext(argc - 1, argv + 1);
-    else if (cstr_eq(subcommand, "arctext"))   return perform_arctext(argc - 1, argv + 1);
-    // NOTE "letter" is just for testing and doesn't actually read arguments
-    else if (cstr_eq(subcommand, "letter"))    return perform_letter(argc - 1, argv + 1);
-
-bad_subcommand:
-    std::cerr << "Invalid subcommand \"" << subcommand << "\"\n";
-    return 1;
+    return 0;
 }

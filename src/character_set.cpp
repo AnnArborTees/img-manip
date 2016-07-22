@@ -52,6 +52,7 @@ namespace mockbot {
     }
 
     bool CharacterSet::load_json(FILE* input) {
+        if (!input) return false;
         // Read all of file
         fseek(input, 0, SEEK_END);
         size_t filesize = ftell(input);

@@ -93,6 +93,7 @@ namespace mockbot {
     }
 
     bool Image::load_file(FILE* input) {
+        if (!input) return false;
         ImageRead r;
         //
         // Validate signature and create structures
@@ -450,11 +451,14 @@ namespace mockbot {
                 for (int x = blit_x; x < max_x; x++) {
                     uint8_t* src_pixel = pixel(x, y);
 
+                    uint8_t a = (bytes_per_pixel == 3 ? MaxRGB : (Quantum)src_pixel[3]);
+                    if (a == MaxRGB) a -= 1;
+
                     *dest_pixel = Color(
                         (Quantum)src_pixel[0],
                         (Quantum)src_pixel[1],
                         (Quantum)src_pixel[2],
-                        (bytes_per_pixel == 3 ? MaxRGB : (Quantum)src_pixel[3]) - 1
+                        a
                     );
 
                     ++dest_pixel;
