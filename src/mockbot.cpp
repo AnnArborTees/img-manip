@@ -4,6 +4,7 @@
 #include <stdio.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
+#include <memory>
 
 using namespace mockbot;
 
@@ -227,6 +228,39 @@ do {                                                                            
         return 0;
 }
 
+std::unique_ptr<Image> letter_atlas;
+std::unique_ptr<CharacterSet> charset;
+
+Image* load_letter_atlas(char* filename) {
+    if (cstr_eq(filename, "--"))
+        return letter_atlas.get();
+
+    letter_atlas.reset(new Image);
+    FILE* file = fopen(filename, "rb");
+    bool success = letter_atlas->load_file(file);
+    if (file) fclose(file);
+
+    if (!success)
+        return NULL;
+
+    return letter_atlas.get();
+}
+
+CharacterSet* load_charset(char* filename) {
+    if (cstr_eq(filename, "--"))
+        return charset.get();
+
+    charset.reset(new CharacterSet);
+    FILE* file = fopen(filename, "rb");
+    bool success = charset->load_json(file);
+    if (file) fclose(file);
+
+    if (!success)
+        return NULL;
+
+    return charset.get();
+}
+
 // Syntax:
 //           (0)  (1)     (2)            (3)           (4)              (5) (6) (7) (8) (9)
 //   mockbot text "Hello" img/canvas.png img/chars.png img/charset.json 100 100 300 120 ing/output.png
@@ -234,8 +268,8 @@ do {                                                                            
 // (0):  subcommand - always 'text'
 // (1):  the text to print onto the image
 // (2):  image on which to print the text
-// (3):  image containing the letters
-// (4):  json document describing where each letter is on (2)
+// (3):  image containing the letters or "--" for the last used letter atlas
+// (4):  json document describing where each letter is on (2) or "--" for the last used character set
 // (5):  x coordinate on (2) of the center of the text
 // (6):  y coordinate on (2) of the center of the text
 // (7):  width of text region (can be "--" to be any width)
@@ -254,22 +288,14 @@ int perform_text(int argc, char** argv, int* args_used) {
         return 1;
     }
 
-    Image atlas;
-    FILE* atlas_file = fopen(argv[3], "rb");
-    success = atlas.load_file(atlas_file);
-    if (atlas_file) fclose(atlas_file);
-
-    if (!success) {
-        std::cout << "Failed to load atlas\n";
+    Image* atlas = load_letter_atlas(argv[3]);
+    if (!atlas) {
+        std::cout << "Failed to load letter atlas\n";
         return 1;
     }
 
-    CharacterSet charset;
-    FILE* charset_file = fopen(argv[4], "r");
-    success = charset.load_json(charset_file);
-    if (charset_file) fclose(charset_file);
-
-    if (!success) {
+    CharacterSet* charset = load_charset(argv[4]);
+    if (!charset) {
         std::cout << "Failed to load charset JSON\n";
         return 2;
     }
@@ -288,7 +314,7 @@ int perform_text(int argc, char** argv, int* args_used) {
 
     int total_text_width;
     int total_text_height;
-    charset.get_dimensions(input_string, &total_text_width, &total_text_height);
+    charset->get_dimensions(input_string, &total_text_width, &total_text_height);
 
     int actual_region_width, actual_region_height;
 
@@ -331,14 +357,14 @@ int perform_text(int argc, char** argv, int* args_used) {
     CompositeOver comp;
 
     for (char* c = input_string; *c != '\0'; c++) {
-        CharacterOffsets* offsets = charset[*c];
+        CharacterOffsets* offsets = (*charset)[*c];
         if (offsets->x < 0 || offsets->y < 0) {
             continue;
         }
         int char_width  = int((double)offsets->width  * text_scale);
         int char_height = int((double)offsets->height * text_scale);
 
-        canvas.composite(atlas, offsets, char_x, char_y, char_width, char_height, &comp);
+        canvas.composite(*atlas, offsets, char_x, char_y, char_width, char_height, &comp);
         char_x += char_width;
     }
 
@@ -375,27 +401,16 @@ int perform_arctext(int argc, char** argv, int* args_used) {
 
     char* input_string = argv[1];
 
-    CharacterSet charset;
-    {
-        FILE* json_file = fopen(argv[4], "r");
-        if (!json_file) {
-            std::cerr << "no json\n";
-            return 2;
-        }
-
-        charset.load_json(json_file);
-        fclose(json_file);
+    Image* atlas = load_letter_atlas(argv[3]);
+    if (!atlas) {
+        std::cout << "Failed to load letter atlas\n";
+        return 1;
     }
 
-    Image atlas;
-    {
-        FILE* image_file = fopen(argv[3], "rb");
-        if (!image_file) {
-            std::cerr << "no charset image\n";
-            return 2;
-        }
-        atlas.load_file(image_file);
-        fclose(image_file);
+    CharacterSet* charset = load_charset(argv[4]);
+    if (!charset) {
+        std::cout << "Failed to load charset JSON\n";
+        return 2;
     }
 
     Image canvas;
@@ -418,7 +433,7 @@ int perform_arctext(int argc, char** argv, int* args_used) {
     int total_text_width;
     int total_text_height;
     int char_count;
-    charset.get_dimensions(input_string, &total_text_width, &total_text_height, &char_count);
+    charset->get_dimensions(input_string, &total_text_width, &total_text_height, &char_count);
     double text_scale = (double)text_height / (double)total_text_height;
 
     int actual_text_width = int((double)total_text_width * text_scale);
@@ -434,8 +449,8 @@ int perform_arctext(int argc, char** argv, int* args_used) {
     // TODO
     // For now let's start by just drawing text and ignoring the text being too long
     for (char* c = input_string; *c != '\0'; c++) {
-        CharacterOffsets* offsets = charset[*c];
-        Image letter = atlas.rotated(offsets, char_angle);
+        CharacterOffsets* offsets = (*charset)[*c];
+        Image letter = atlas->rotated(offsets, char_angle);
 
         int char_width  = int((double)letter.width  * text_scale);
         int char_height = int((double)letter.height * text_scale);
