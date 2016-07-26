@@ -42,75 +42,159 @@ static int positive_int_arg(char* arg) {
         return atoi(arg);
 }
 
+CompositeOver     composite_over;
+CompositeMultiply composite_multiply;
+Compositor*       last_compositor;
+
+std::unique_ptr<Image>        letter_atlas;
+std::unique_ptr<CharacterSet> charset;
+std::unique_ptr<Image>        last_canvas;
+
+Compositor* load_compositor(char* type) {
+    if (cstr_eq(type, "over"))
+        last_compositor = &composite_over;
+    else if (cstr_eq(type, "multiply"))
+        last_compositor = &composite_multiply;
+
+    return last_compositor;
+}
+
+Image* load_letter_atlas(char* filename) {
+    if (cstr_eq(filename, "--"))
+        return letter_atlas.get();
+
+    letter_atlas.reset(new Image);
+    FILE* file = fopen(filename, "rb");
+    bool success = letter_atlas->load_file(file);
+    if (file) fclose(file);
+
+    if (!success)
+        return NULL;
+
+    return letter_atlas.get();
+}
+
+CharacterSet* load_charset(char* filename) {
+    if (cstr_eq(filename, "--"))
+        return charset.get();
+
+    charset.reset(new CharacterSet);
+    FILE* file = fopen(filename, "r");
+    bool success = charset->load_json(file);
+    if (file) fclose(file);
+
+    if (!success)
+        return NULL;
+
+    return charset.get();
+}
+
+Image* load_canvas(char* filename) {
+    if (cstr_eq(filename, "--"))
+        return last_canvas.get();
+
+    last_canvas.reset(new Image);
+    FILE* file = fopen(filename, "rb");
+    bool success = last_canvas->load_file(file);
+    if (file) fclose(file);
+
+    if (!success)
+        return NULL;
+
+    return last_canvas.get();
+}
+
 int perform_composite(int argc, char** argv, int* args_used) {
     *args_used = 9;
-    if (argc == 9) {
-        Image img1;
-        Image img2;
 
-        FILE* f1 = fopen(argv[1], "rb");
-        if (!f1) {
-            std::cerr << "Couldn't open " << argv[1] << '\n';
-            return 2;
+    // If '--' is passed for img2, we have img2 point to the previously used canvas,
+    // otherwise, we load img2 right here and need it to be disposed at the end of the
+    // function, so we have it point to this local variable in that case.
+    Image local_img;
+
+    int x = std::stoi(std::string(argv[3]));
+    int y = std::stoi(std::string(argv[4]));
+    int w = std::stoi(std::string(argv[5]));
+    int h = std::stoi(std::string(argv[6]));
+
+    // TODO please clean up the code for laoding the images here it's awful
+
+    Image* img2;
+    if (cstr_eq(argv[2], "--")) {
+        if (cstr_eq(argv[1], "--")) {
+            std::cerr << "Can't use last canvas for both images in a composite\n";
+            return 10;
         }
+
+        img2 = last_canvas.get();
+    }
+    else {
+        img2 = &local_img;
 
         FILE* f2 = fopen(argv[2], "rb");
-        if (!f2) {
-            std::cerr << "Couldn't open " << argv[2] << '\n';
+        bool success = img2->load_file(f2);
+        if (f2) fclose(f2);
+        if (!success) {
+            std::cerr << "Failed decode img2: " << argv[2] << '\n';
             return 2;
         }
+    }
+    if (!img2) {
+        std::cerr << "Failed to acquire img2 from " << argv[2] << '\n';
+        return 2;
+    }
 
-        int x = std::stoi(std::string(argv[3]));
-        int y = std::stoi(std::string(argv[4]));
-        int w = std::stoi(std::string(argv[5]));
-        int h = std::stoi(std::string(argv[6]));
+    Image* img1;
+    if (cstr_eq(argv[1], "--")) {
+        img1 = load_canvas(argv[1]);
+    }
+    else {
+        img1 = &local_img;
 
-        if (!img1.load_file(f1)) {
-            std::cerr << "Failed decode PNG: " << argv[1] << '\n';
+        FILE* f1 = fopen(argv[1], "rb");
+        bool success = img1->load_file(f1);
+        if (f1) fclose(f1);
+        if (!success) {
+            std::cerr << "Failed decode img1: " << argv[1] << '\n';
             return 2;
         }
-        if (!img2.load_file(f2)) {
-            std::cerr << "Failed decode PNG: " << argv[2] << '\n';
-            return 2;
-        }
+    }
+    if (!img1) {
+        std::cerr << "Failed acquire img1: " << argv[1] << '\n';
+        return 2;
+    }
 
-        img2.make_background_transparent();
+    img2->make_background_transparent();
 
-        CompositeOver over;
-        CompositeMultiply multiply;
-        Compositor* comp;
+    CompositeOver over;
+    CompositeMultiply multiply;
+    Compositor* comp;
 
-        std::string operation = argv[7];
-        if (operation == "multiply")
-            comp = &multiply;
-        else
-            comp = &over;
+    std::string operation = argv[7];
+    if (operation == "multiply")
+        comp = &multiply;
+    else
+        comp = &over;
 
-        if (!img1.composite(img2, x, y, w, h, comp)) {
-            std::cerr << "Failed to composite " << argv[2] << " onto " << argv[1] << '\n';
-            return 2;
-        }
+    if (!img1->composite(*img2, x, y, w, h, comp)) {
+        std::cerr << "Failed to composite " << argv[2] << " onto " << argv[1] << '\n';
+        return 2;
+    }
 
-        fclose(f1);
-        fclose(f2);
-
+    if (!cstr_eq(argv[8], "--")) {
         FILE* f3 = fopen(argv[8], "wb");
         if (!f3) {
             std::cerr << "Couldn't reopen " << argv[9] << " for writing\n";
             return 2;
         }
 
-        if (!img1.save(f3)) {
+        if (!img1->save(f3)) {
             std::cerr << "Failed to encode result to " << argv[9] << '\n';
             return 2;
         }
         fclose(f3);
-        return 0;
     }
-    else {
-        std::cout << "Do `" << argv[0] << " file1 file2 x y width height (over|multiply) outputfile` to comp file2 onto file1 at the given position/dimensions, then save into outputfile\n";
-        return 1;
-    }
+    return 0;
 }
 
 // Syntax:
@@ -234,68 +318,6 @@ do {                                                                            
     }
     else
         return 0;
-}
-
-CompositeOver     composite_over;
-CompositeMultiply composite_multiply;
-Compositor*       last_compositor;
-
-std::unique_ptr<Image>        letter_atlas;
-std::unique_ptr<CharacterSet> charset;
-std::unique_ptr<Image>        last_canvas;
-
-Compositor* load_compositor(char* type) {
-    if (cstr_eq(type, "over"))
-        last_compositor = &composite_over;
-    else if (cstr_eq(type, "multiply"))
-        last_compositor = &composite_multiply;
-
-    return last_compositor;
-}
-
-Image* load_letter_atlas(char* filename) {
-    if (cstr_eq(filename, "--"))
-        return letter_atlas.get();
-
-    letter_atlas.reset(new Image);
-    FILE* file = fopen(filename, "rb");
-    bool success = letter_atlas->load_file(file);
-    if (file) fclose(file);
-
-    if (!success)
-        return NULL;
-
-    return letter_atlas.get();
-}
-
-CharacterSet* load_charset(char* filename) {
-    if (cstr_eq(filename, "--"))
-        return charset.get();
-
-    charset.reset(new CharacterSet);
-    FILE* file = fopen(filename, "r");
-    bool success = charset->load_json(file);
-    if (file) fclose(file);
-
-    if (!success)
-        return NULL;
-
-    return charset.get();
-}
-
-Image* load_canvas(char* filename) {
-    if (cstr_eq(filename, "--"))
-        return last_canvas.get();
-
-    last_canvas.reset(new Image);
-    FILE* file = fopen(filename, "rb");
-    bool success = last_canvas->load_file(file);
-    if (file) fclose(file);
-
-    if (!success)
-        return NULL;
-
-    return last_canvas.get();
 }
 
 // Syntax:
