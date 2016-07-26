@@ -1,5 +1,11 @@
 # MockBot image manipulation tool
 
+## REQUIREMENTS
+
+### macOS
+
+For mac, you'll likely want to run `brew install imagemagick --with-quantum-depth-8 --with-x11`
+
 ## TO BUILD:
 
 ### In development

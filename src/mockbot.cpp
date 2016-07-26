@@ -8,7 +8,15 @@
 
 using namespace mockbot;
 
-bool cstr_eq(const char* s1, const char* s2) {
+bool magick_has_been_initialized = false;
+static void init_magick() {
+    if (!magick_has_been_initialized) {
+        Magick::InitializeMagick(NULL);
+        magick_has_been_initialized = true;
+    }
+}
+
+static bool cstr_eq(const char* s1, const char* s2) {
     size_t i = 0;
     char c1;
     char c2;
@@ -27,7 +35,7 @@ bool cstr_eq(const char* s1, const char* s2) {
     }
 }
 
-int positive_int_arg(char* arg) {
+static int positive_int_arg(char* arg) {
     if (cstr_eq(arg, "--"))
         return -1;
     else
@@ -426,6 +434,7 @@ int perform_text(int argc, char** argv, int* args_used) {
 // (10): output file
 int perform_arctext(int argc, char** argv, int* args_used) {
     *args_used = 11;
+    init_magick();
 
     char* input_string = argv[1];
 
@@ -447,7 +456,6 @@ int perform_arctext(int argc, char** argv, int* args_used) {
         return 3;
     }
 
-    // TODO this is mock user input
     int center_x    = atoi(argv[5]);
     int center_y    = atoi(argv[6]);
     int radius      = atoi(argv[7]);
@@ -502,26 +510,101 @@ int perform_arctext(int argc, char** argv, int* args_used) {
 }
 
 // Syntax:
-//           (0)  (1)     (2)          
-//   mockbot text "Hello" img/canvas.png font/ariel.ttf x y w h img/output.png
+//           (0)  (1)     (2)            (3)             (4)     (5) (6) (7) (8) (9)  (10)
+//   mockbot text "Hello" img/canvas.png @font/ariel.ttf #FFFFFF 120 120 700 100 over img/output.png
 //
-// (0):  subcommand - always 'text'
+// (0):  subcommand - always 'ftext'
 // (1):  the text to print onto the image
-// (2):  image on which to print the text                      TODO fix this up
-// (5):  x coordinate on (2) of the center of the text
-// (6):  y coordinate on (2) of the center of the text
-// (7):  width of text region (can be "--" to be any width)
-// (8):  height of text region (can be "--" to be any height)
-// (9):  file to save the result to
+// (2):  image on which to print the text
+// (3):  font to use
+// (4):  font color
+// (5):  rectangle x
+// (6):  rectangle y
+// (7):  rectangle width
+// (8):  rectangle height
+// (9):  composition method
+// (10): output file
 int perform_ftext(int argc, char** argv, int* args_used) {
-    *args_used = 0;
-    /*
-    Magick::Image canvas(argv[0]);
-    int width = canvas.columns();
-    int height = canvas.rows();
-    */
-    std::cerr << "Psych no ftext yet\n";
-    return 1;
+    using Magick::Quantum;
+    using Magick::Color;
+    using Magick::Geometry;
+    using Magick::PixelPacket;
+
+    *args_used = 11;
+    init_magick();
+
+    char* input_string = argv[1];
+
+    Image* canvas = load_canvas(argv[2]);
+    if (!canvas) {
+        std::cerr << "Failed to load canvas at " << argv[2] << '\n';
+        return 3;
+    }
+
+    Magick::Image text_magick(Geometry(3000, 500), Magick::Color(0, 0, 0, MaxRGB));
+    text_magick.magick("png");
+    text_magick.font(argv[3]);
+    text_magick.fontPointsize(150);
+    auto color = Image::magick_color(argv[4]);
+    text_magick.fillColor(color);
+    text_magick.strokeColor(color);
+    // text_magick.strokeAntiAlias(false);
+
+    text_magick.annotate(input_string, Magick::NorthWestGravity);
+
+    int text_width  = 0;
+    int text_height = 0;
+
+    // Find the actual width and height of the text on the image
+    {
+        Magick::Pixels pixel_view(text_magick);
+        int textimg_width  = text_magick.columns();
+        int textimg_height = text_magick.rows();
+
+        PixelPacket* text_pixel = pixel_view.get(0, 0, textimg_width, textimg_height);
+        int area = textimg_width * textimg_height;
+        for (int i = 0; i < area; i++)
+            ++text_pixel;
+
+        for (int y = textimg_height - 1; y >= 0; y--) {
+            for (int x = textimg_width - 1; x >= 0; x--) {
+                --text_pixel;
+
+                if (text_pixel->opacity != MaxRGB) {
+                    int w = x + 1;
+                    int h = y + 1;
+                    if (w > text_width)
+                        text_width = w;
+                    if (h > text_height)
+                        text_height = h;
+                }
+            }
+        }
+    }
+
+    std::cout << "Text turned out to be " << text_width << 'x' << text_height << '\n';
+
+    int dest_x      = atoi(argv[5]);
+    int dest_y      = atoi(argv[6]);
+    int dest_width  = atoi(argv[7]);
+    int dest_height = atoi(argv[8]);
+
+    Image text_image(text_magick);
+
+    Compositor* comp = load_compositor(argv[9]);
+    canvas->composite(text_image, 0, 0, text_width, text_height, dest_x, dest_y, dest_width, dest_height, comp);
+
+    if (!cstr_eq(argv[10], "--")) {
+        FILE* output_file = fopen(argv[10], "wb");
+        bool success = canvas->save(output_file);
+        if (output_file) fclose(output_file);
+        if (!success) {
+            std::cerr << "Failed to save!!!\n";
+            return 2;
+        }
+    }
+
+    return 0;
 }
 
 // We'll make this print a single letter onto the center of a blank image I guess

@@ -5,6 +5,7 @@
 #include <pngconf.h>
 #include <functional>
 #include <string>
+#include <Magick++.h>
 
 // Accepted color types:
 #define COLOR_TYPE_RGBA 6
@@ -64,7 +65,10 @@ namespace mockbot {
 
     class Image {
     public:
+        static Magick::Color magick_color(char* hexcode);
+
         Image();
+        Image(Magick::Image& magick);
         ~Image();
 
         // Returns a pointer to the red component of the pixel at x,y.

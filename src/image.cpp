@@ -1,5 +1,4 @@
 #include "image.h"
-#include <Magick++.h>
 #include <memory>
 #include <stdlib.h>
 #define _USE_MATH_DEFINES
@@ -28,7 +27,6 @@ namespace mockbot {
     }
 
     static uint8_t real_to_px(double color) {
-        // printf("COLOR: %f ||| ", color);
         return uint8_t(color * 255.0);
     }
 
@@ -59,6 +57,27 @@ namespace mockbot {
         pixel[3] = 0xFF;
     }
 
+    static double max(double a, double b) {
+        return a > b ? a : b;
+    }
+
+// NOTE performance is much better with a quantum depth of 8
+#if MAGICKCORE_QUANTUM_DEPTH == 8
+#define px_to_quantum(p) ((Magick::Quantum)(p))
+#define quantum_to_px(q) ((uint8_t)(q))
+#else
+    static Magick::Quantum px_to_quantum(uint8_t px) {
+        using Magick::Quantum;
+        double dpx = px_to_real(px);
+        return Magick::Quantum(dpx * (double)MaxRGB);
+    }
+    static uint8_t quantum_to_px(Quantum q) {
+        using Magick::Quantum;
+        double dq = double(q) / (double)MaxRGB;
+        return real_to_px(dq);
+    }
+#endif
+
     //
     // ImageWrite and ImageRead wrappers for destroying libpng resources using RAII
     //
@@ -81,7 +100,40 @@ namespace mockbot {
     // Image class definitions
     //
 
+    // NOTE this currently won't work on hexcodes with an alpha channel (i.e. #FF0000FF)
+    Magick::Color Image::magick_color(char* hexcode) {
+        using Magick::Quantum;
+        uint8_t color[4];
+        std::string hex(hexcode + 1);
+        hexcode_to_pixel((uint8_t*)color, hex);
+        return Magick::Color(
+            px_to_quantum(color[0]),
+            px_to_quantum(color[1]),
+            px_to_quantum(color[2]),
+            MaxRGB - px_to_quantum(color[3])
+        );
+    }
+
     Image::Image() : image_data(NULL) {
+    }
+    Image::Image(Magick::Image& magick) : image_data(NULL) {
+        fill_blank((uint8_t*)empty_pixel, magick.columns(), magick.rows());
+
+        Magick::Pixels m_image_pixels(magick);
+        Magick::PixelPacket* src_pixel = m_image_pixels.get(0, 0, width, height);
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                uint8_t* dest_pixel = pixel(x, y);
+
+                dest_pixel[0] = quantum_to_px(src_pixel->red);
+                dest_pixel[1] = quantum_to_px(src_pixel->green);
+                dest_pixel[2] = quantum_to_px(src_pixel->blue);
+                dest_pixel[3] = 255 - quantum_to_px(src_pixel->opacity);
+
+                ++src_pixel;
+            }
+        }
     }
     Image::~Image() {
         cleanup();
@@ -334,8 +386,8 @@ namespace mockbot {
 
         // Number of big-image pixels per little-image pixel
         // (big-image being unmodified `other`, little-image being `other` resized to `other_new_width` by `other_new_height`)
-        double x_old_per_new = double(blit_width)  / double(other_new_width);
-        double y_old_per_new = double(blit_height) / double(other_new_height);
+        double x_old_per_new = max(double(blit_width)  / double(other_new_width),  1.0);
+        double y_old_per_new = max(double(blit_height) / double(other_new_height), 1.0);
 
         int max_x = other_x + other_new_width;
         int max_y = other_y + other_new_height;
@@ -391,15 +443,15 @@ namespace mockbot {
                 // NOTE This (inv_alpha) only has an effect when the image is blending into empty space (dest_alpha = 0)
                 // which won't happen in our use case as far as I know.
                 //
-                //   double inv_alpha = 1.0 / (src_alpha + dest_alpha * one_minus_src_alpha);
+                double inv_alpha = 1.0 / (src_alpha + dest_alpha * one_minus_src_alpha);
                 //
-                // Multiplying the result of comp->blend_color by inv_alpha will fix that weirdness.
+                // Multiplying the result of comp->blend_color by inv_alpha will make compositing onto emptiness work.
 
                 for (int i = 0; i < 3; i++) {
                     double dest_color = px_to_real(dest_pixel[i]);
                     double src_color  = new_pixel[i] / total_count;
 
-                    double new_color = comp->blend_color(src_color, src_alpha, dest_color, dest_alpha, one_minus_src_alpha);
+                    double new_color = comp->blend_color(src_color, src_alpha, dest_color, dest_alpha, one_minus_src_alpha) * inv_alpha;
                     if (new_color > 1.0) new_color = 1.0;
 
                     dest_pixel[i] = real_to_px(new_color);
@@ -455,10 +507,10 @@ namespace mockbot {
                     if (a == MaxRGB) a -= 1;
 
                     *dest_pixel = Color(
-                        (Quantum)src_pixel[0],
-                        (Quantum)src_pixel[1],
-                        (Quantum)src_pixel[2],
-                        a
+                        px_to_quantum(src_pixel[0]),
+                        px_to_quantum(src_pixel[1]),
+                        px_to_quantum(src_pixel[2]),
+                        px_to_quantum(a)
                     );
 
                     ++dest_pixel;
@@ -468,27 +520,7 @@ namespace mockbot {
 
         m_image.rotate((angle * (180.0 / M_PI)) + 90.0);
 
-        Image result;
-        result.fill_blank((uint8_t*)empty_pixel, m_image.columns(), m_image.rows());
-
-        {
-            Magick::Pixels m_image_pixels(m_image);
-
-            PixelPacket* src_pixel = m_image_pixels.get(0, 0, result.width, result.height);
-
-            for (int y = 0; y < result.height; y++) {
-                for (int x = 0; x < result.width; x++) {
-                    uint8_t* dest_pixel = result.pixel(x, y);
-
-                    dest_pixel[0] = (uint8_t)src_pixel->red;
-                    dest_pixel[1] = (uint8_t)src_pixel->green;
-                    dest_pixel[2] = (uint8_t)src_pixel->blue;
-                    dest_pixel[3] = (uint8_t)src_pixel->opacity;
-
-                    ++src_pixel;
-                }
-            }
-        }
+        Image result(m_image);
 
         return result;
     }
