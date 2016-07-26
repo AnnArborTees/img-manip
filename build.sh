@@ -1,6 +1,6 @@
 if [ "$RELEASE" = "true" ]; then
   echo "Release build"
-  FLAGS="-O3"
+  FLAGS="-O2 -ffast-math"
 else
   echo "Debug build"
   FLAGS="-ggdb -O0"
