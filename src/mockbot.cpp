@@ -205,7 +205,7 @@ int perform_composite(int argc, char** argv, int* args_used) {
 // (0):  subcommand - always 'thumbnail'
 // (1):  background color, set to "--" to use the first pixel of the artwork image
 // (2):  heather file path, set to "--" to not use heather
-// (3):  artwork file path
+// (3):  artwork file path, set to "--" to use the canvas from the previous command
 // (4):  swash file path
 // (5):  canvas width and height
 // (6):  padding
@@ -225,8 +225,11 @@ int perform_thumbnail(int argc, char** argv, int* args_used) {
     CompositeOver     composite_over;
     CompositeMultiply composite_multiply;
 
+    Image local_canvas;
+    Image local_artwork;
+
     Image canvas;
-    Image artwork;
+    Image* artwork;
     Image swash;
     Image heather;
 
@@ -245,15 +248,27 @@ do {                                                                            
     if (!did_load) { std::cerr << "Failed to decode file " << (filename) << " -- " << (image).last_error() << '\n'; return 3; } \
 } while (0)
 
-    LOAD_IMAGE(artwork, argv[3]);
-    LOAD_IMAGE(swash,   argv[4]);
+#define LOAD_IMAGE_OR_CANVAS(image, filename, local_var)                                                      \
+if (cstr_eq(filename, "--")) {                                                                                 \
+    image = load_canvas(filename);                                                                              \
+}                                                                                                                \
+else {                                                                                                            \
+    FILE* f = fopen(filename, "rb");                                                                               \
+    image = &local_var;                                                                                             \
+    bool success = image->load_file(f);                                                                              \
+    if (f) fclose(f);                                                                                                 \
+    if (!success) { std::cerr << "Failed to decode " << filename << " -- " << image->last_error() << '\n'; return 4; } \
+}
+
+    LOAD_IMAGE_OR_CANVAS(artwork, argv[3], local_artwork);
+    LOAD_IMAGE(swash, argv[4]);
 
     if (color_hexcode == "--")
-        canvas.fill_blank(artwork.pixel(0, 0), canvas_dim, canvas_dim);
+        canvas.fill_blank(artwork->pixel(0, 0), canvas_dim, canvas_dim);
     else
         canvas.fill_blank(color_hexcode, canvas_dim, canvas_dim);
 
-    artwork.make_background_transparent();
+    artwork->make_background_transparent();
 
     const char* heather_filename = argv[2];
     if (!cstr_eq(heather_filename, "--")) {
@@ -286,8 +301,8 @@ do {                                                                            
     x = (width / art_width) * art_x;
     y = (height / art_height) * art_y;
 
-    img_width  = (width  / art_width)  * double(artwork.width);
-    img_height = (height / art_height) * double(artwork.height);
+    img_width  = (width  / art_width)  * double(artwork->width);
+    img_height = (height / art_height) * double(artwork->height);
 
     // Center gravity
     double offset_x = (canvas_width - width) / 2.0;
@@ -300,7 +315,7 @@ do {                                                                            
     else
         comp = &composite_over;
 
-    canvas.composite(artwork, offset_x - x, offset_y - y, img_width, img_height, comp);
+    canvas.composite(*artwork, offset_x - x, offset_y - y, img_width, img_height, comp);
 
     // Now we add the swash, and the operation is done.
     canvas.composite(swash, 0, 0, canvas_dim, canvas_dim, &composite_multiply);
