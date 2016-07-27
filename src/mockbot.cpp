@@ -110,7 +110,8 @@ int perform_composite(int argc, char** argv, int* args_used) {
     // If '--' is passed for img2, we have img2 point to the previously used canvas,
     // otherwise, we load img2 right here and need it to be disposed at the end of the
     // function, so we have it point to this local variable in that case.
-    Image local_img;
+    Image local_img1;
+    Image local_img2;
 
     int x = std::stoi(std::string(argv[3]));
     int y = std::stoi(std::string(argv[4]));
@@ -129,7 +130,7 @@ int perform_composite(int argc, char** argv, int* args_used) {
         img2 = last_canvas.get();
     }
     else {
-        img2 = &local_img;
+        img2 = &local_img2;
 
         FILE* f2 = fopen(argv[2], "rb");
         bool success = img2->load_file(f2);
@@ -149,7 +150,7 @@ int perform_composite(int argc, char** argv, int* args_used) {
         img1 = load_canvas(argv[1]);
     }
     else {
-        img1 = &local_img;
+        img1 = &local_img1;
 
         FILE* f1 = fopen(argv[1], "rb");
         bool success = img1->load_file(f1);
@@ -563,14 +564,18 @@ int perform_ftext(int argc, char** argv, int* args_used) {
         return 3;
     }
 
-    Magick::Image text_magick(Geometry(3000, 500), Magick::Color(0, 0, 0, MaxRGB));
+    int dest_x      = atoi(argv[5]);
+    int dest_y      = atoi(argv[6]);
+    int dest_width  = atoi(argv[7]);
+    int dest_height = atoi(argv[8]);
+
+    Magick::Image text_magick(Geometry(dest_width * 2, dest_height * 2), Magick::Color(0, 0, 0, MaxRGB));
     text_magick.magick("png");
     text_magick.font(argv[3]);
-    text_magick.fontPointsize(150);
+    text_magick.fontPointsize(dest_height + dest_height / 2);
     auto color = Image::magick_color(argv[4]);
     text_magick.fillColor(color);
     text_magick.strokeColor(color);
-    // text_magick.strokeAntiAlias(false);
 
     text_magick.annotate(input_string, Magick::NorthWestGravity);
 
@@ -605,11 +610,6 @@ int perform_ftext(int argc, char** argv, int* args_used) {
     }
 
     std::cout << "Text turned out to be " << text_width << 'x' << text_height << '\n';
-
-    int dest_x      = atoi(argv[5]);
-    int dest_y      = atoi(argv[6]);
-    int dest_width  = atoi(argv[7]);
-    int dest_height = atoi(argv[8]);
 
     Image text_image(text_magick);
 

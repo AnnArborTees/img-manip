@@ -386,8 +386,10 @@ namespace mockbot {
 
         // Number of big-image pixels per little-image pixel
         // (big-image being unmodified `other`, little-image being `other` resized to `other_new_width` by `other_new_height`)
-        double x_old_per_new = max(double(blit_width)  / double(other_new_width),  1.0);
-        double y_old_per_new = max(double(blit_height) / double(other_new_height), 1.0);
+        double x_old_per_new = double(blit_width)  / double(other_new_width);
+        double y_old_per_new = double(blit_height) / double(other_new_height);
+        double x_old_step = max(x_old_per_new, 1.0);
+        double y_old_step = max(y_old_per_new, 1.0);
 
         int max_x = other_x + other_new_width;
         int max_y = other_y + other_new_height;
@@ -406,10 +408,10 @@ namespace mockbot {
 
                 // a "new src" pixel probably refers to multiple "old src" pixels, so we want
                 // the average of those "old src" pixels.
-                double oldsrc_x_begin = double(x - other_x) * double(x_old_per_new) + blit_x;
-                double oldsrc_y_begin = double(y - other_y) * double(y_old_per_new) + blit_y;
-                double oldsrc_x_end = oldsrc_x_begin + x_old_per_new;
-                double oldsrc_y_end = oldsrc_y_begin + y_old_per_new;
+                double oldsrc_x_begin = double(x - other_x) * x_old_per_new + blit_x;
+                double oldsrc_y_begin = double(y - other_y) * y_old_per_new + blit_y;
+                double oldsrc_x_end = oldsrc_x_begin + x_old_step;
+                double oldsrc_y_end = oldsrc_y_begin + y_old_step;
 
                 // Gather sum for average:
                 double total_count = 0.0;
