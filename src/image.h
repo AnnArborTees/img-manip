@@ -118,8 +118,8 @@ namespace mockbot {
         // Frees image_data if needed
         void cleanup();
 
-        uint32_t width;
-        uint32_t height;
+        long unsigned int width;
+        long unsigned int height;
     private:
         uint8_t* image_data;
         int bit_depth;
