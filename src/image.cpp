@@ -71,7 +71,7 @@ namespace mockbot {
         double dpx = px_to_real(px);
         return Magick::Quantum(dpx * (double)MaxRGB);
     }
-    static uint8_t quantum_to_px(Quantum q) {
+    static uint8_t quantum_to_px(Magick::Quantum q) {
         using Magick::Quantum;
         double dq = double(q) / (double)MaxRGB;
         return real_to_px(dq);
