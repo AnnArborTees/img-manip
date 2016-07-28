@@ -207,7 +207,7 @@ int perform_composite(int argc, char** argv, int* args_used) {
 // (2):  heather file path, set to "--" to not use heather
 // (3):  artwork file path, set to "--" to use the canvas from the previous command
 // (4):  swash file path
-// (5):  canvas width and height
+// (5):  canvas width and height (it's always square)
 // (6):  padding
 // (7):  artwork composition method
 // (8):  artwork x (rel. to the image's topleft)
@@ -217,16 +217,13 @@ int perform_composite(int argc, char** argv, int* args_used) {
 // (12): output file name
 int perform_thumbnail(int argc, char** argv, int* args_used) {
     *args_used = 13;
-    if (argc != 13) {
+    if (argc < 13) {
         std::cerr << "Expected exactly 12 arguments after 'thumbnail'\n";
         return 1;
     }
 
     CompositeOver     composite_over;
     CompositeMultiply composite_multiply;
-
-    Image local_canvas;
-    Image local_artwork;
 
     Image canvas;
     Image* artwork;
@@ -248,19 +245,7 @@ do {                                                                            
     if (!did_load) { std::cerr << "Failed to decode file " << (filename) << " -- " << (image).last_error() << '\n'; return 3; } \
 } while (0)
 
-#define LOAD_IMAGE_OR_CANVAS(image, filename, local_var)                                                      \
-if (cstr_eq(filename, "--")) {                                                                                 \
-    image = load_canvas(filename);                                                                              \
-}                                                                                                                \
-else {                                                                                                            \
-    FILE* f = fopen(filename, "rb");                                                                               \
-    image = &local_var;                                                                                             \
-    bool success = image->load_file(f);                                                                              \
-    if (f) fclose(f);                                                                                                 \
-    if (!success) { std::cerr << "Failed to decode " << filename << " -- " << image->last_error() << '\n'; return 4; } \
-}
-
-    LOAD_IMAGE_OR_CANVAS(artwork, argv[3], local_artwork);
+    artwork = load_canvas(argv[3]);
     LOAD_IMAGE(swash, argv[4]);
 
     if (color_hexcode == "--")
