@@ -183,8 +183,7 @@ namespace mockbot {
         png_init_io(r.png, input);
         png_set_sig_bytes(r.png, 8);
         png_read_info(r.png, r.info);
-        png_get_IHDR(r.png, r.info, (png_uint_32*)&width, (png_uint_32*)&height, &bit_depth, &color_type, NULL, NULL, NULL);
-        // std::cout << "Loaded IHDR of " << width << 'x' << height << ", " << bit_depth << ", " << color_type << '\n';
+        png_get_IHDR(r.png, r.info, &width, &height, &bit_depth, &color_type, NULL, NULL, NULL);
 
         switch (color_type) {
         case COLOR_TYPE_RGB:  bytes_per_pixel = 3; break;
