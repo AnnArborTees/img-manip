@@ -246,6 +246,10 @@ do {                                                                            
 } while (0)
 
     artwork = load_canvas(argv[3]);
+    if (!artwork) {
+        std::cerr << "Failed to load " << argv[3] << '\n';
+        return 4;
+    }
     LOAD_IMAGE(swash, argv[4]);
 
     if (color_hexcode == "--")
