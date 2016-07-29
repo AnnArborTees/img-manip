@@ -537,27 +537,29 @@ int perform_arctext(int argc, char** argv, int* args_used) {
 }
 
 // Syntax:
-//           (0)  (1)     (2)            (3)             (4)     (5) (6) (7) (8) (9)  (10)
-//   mockbot text "Hello" img/canvas.png @font/ariel.ttf #FFFFFF 120 120 700 100 over img/output.png
+//           (0)  (1)     (2)            (3)             (4)     (5)     (6) (7) (8) (9) (10) (11) (12)
+//   mockbot text "Hello" img/canvas.png @font/ariel.ttf #FFFFFF #000000 2.5 120 120 700 100  over img/output.png
 //
 // (0):  subcommand - always 'ftext'
 // (1):  the text to print onto the image
 // (2):  image on which to print the text
 // (3):  font to use
 // (4):  font color
-// (5):  rectangle x
-// (6):  rectangle y
-// (7):  rectangle width
-// (8):  rectangle height
-// (9):  composition method
-// (10): output file
+// (5):  font outline color or "--" for no outline
+// (6):  font outline width
+// (7):  rectangle x
+// (8):  rectangle y
+// (9):  rectangle width
+// (10): rectangle height
+// (11): composition method
+// (12): output file
 int perform_ftext(int argc, char** argv, int* args_used) {
     using Magick::Quantum;
     using Magick::Color;
     using Magick::Geometry;
     using Magick::PixelPacket;
 
-    *args_used = 11;
+    *args_used = 13;
     init_magick();
 
     char* input_string = argv[1];
@@ -568,18 +570,26 @@ int perform_ftext(int argc, char** argv, int* args_used) {
         return 3;
     }
 
-    int dest_x      = atoi(argv[5]);
-    int dest_y      = atoi(argv[6]);
-    int dest_width  = atoi(argv[7]);
-    int dest_height = atoi(argv[8]);
+    int dest_x      = atoi(argv[7]);
+    int dest_y      = atoi(argv[8]);
+    int dest_width  = atoi(argv[9]);
+    int dest_height = atoi(argv[10]);
 
     Magick::Image text_magick(Geometry(dest_width * 2, dest_height * 2), Magick::Color(0, 0, 0, MaxRGB));
     text_magick.magick("png");
     text_magick.font(argv[3]);
     text_magick.fontPointsize(dest_height + dest_height / 2);
+
     auto color = Image::magick_color(argv[4]);
     text_magick.fillColor(color);
-    text_magick.strokeColor(color);
+
+    if (cstr_eq(argv[5], "--")) {
+        text_magick.strokeColor(color);
+    }
+    else {
+        text_magick.strokeColor(Image::magick_color(argv[5]));
+        text_magick.strokeWidth(atof(argv[6]));
+    }
 
     text_magick.annotate(input_string, Magick::NorthWestGravity);
 
@@ -617,11 +627,11 @@ int perform_ftext(int argc, char** argv, int* args_used) {
 
     Image text_image(text_magick);
 
-    Compositor* comp = load_compositor(argv[9]);
+    Compositor* comp = load_compositor(argv[11]);
     canvas->composite(text_image, 0, 0, text_width, text_height, dest_x, dest_y, dest_width, dest_height, comp);
 
-    if (!cstr_eq(argv[10], "--")) {
-        FILE* output_file = fopen(argv[10], "wb");
+    if (!cstr_eq(argv[12], "--")) {
+        FILE* output_file = fopen(argv[12], "wb");
         bool success = canvas->save(output_file);
         if (output_file) fclose(output_file);
         if (!success) {
