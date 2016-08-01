@@ -363,8 +363,8 @@ int perform_text(int argc, char** argv, int* args_used) {
 
     // const int padding = 5; // Space between each letter ???
     char* input_string = argv[1];
-    const int center_x = positive_int_arg(argv[5]);
-    const int center_y = positive_int_arg(argv[6]);
+    const int region_x = positive_int_arg(argv[5]);
+    const int region_y = positive_int_arg(argv[6]);
     const int region_width  = positive_int_arg(argv[7]);
     const int region_height = positive_int_arg(argv[8]);
 
@@ -413,8 +413,8 @@ int perform_text(int argc, char** argv, int* args_used) {
 
     double text_scale = (double)actual_region_width / (double)total_text_width;
 
-    int char_x = center_x - actual_region_width / 2; // This will increment by character width each character
-    int char_y = center_y - actual_region_height / 2; // This will stay the same I suppose
+    int char_x = region_x; // This will increment by character width each character
+    int char_y = region_y; // This will stay the same I suppose
 
     Compositor* comp = load_compositor(argv[9]);
     for (char* c = input_string; *c != '\0'; c++) {
