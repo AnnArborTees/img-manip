@@ -583,15 +583,23 @@ int perform_ftext(int argc, char** argv, int* args_used) {
     auto color = Image::magick_color(argv[4]);
     text_magick.fillColor(color);
 
+    bool overdraw;
     if (cstr_eq(argv[5], "--")) {
         text_magick.strokeColor(color);
+        overdraw = false;
     }
     else {
         text_magick.strokeColor(Image::magick_color(argv[5]));
         text_magick.strokeWidth(atof(argv[6]));
+        overdraw = true;
     }
 
     text_magick.annotate(input_string, Magick::NorthWestGravity);
+    if (overdraw) {
+        text_magick.strokeColor(color);
+        text_magick.strokeWidth(0.5);
+        text_magick.annotate(input_string, Magick::NorthWestGravity);
+    }
 
     int text_width  = 0;
     int text_height = 0;
