@@ -575,10 +575,15 @@ int perform_ftext(int argc, char** argv, int* args_used) {
     int dest_width  = atoi(argv[9]);
     int dest_height = atoi(argv[10]);
 
-    Magick::Image text_magick(Geometry(dest_width * 2, dest_height * 2), Magick::Color(0, 0, 0, MaxRGB));
+    auto transparent = Magick::Color(0, 0, 0, MaxRGB);
+    Magick::Image text_magick(Geometry(0, 0), transparent);
     text_magick.magick("png");
     text_magick.font(argv[3]);
     text_magick.fontPointsize(dest_height + dest_height / 2);
+
+    Magick::TypeMetric metrics;
+    text_magick.fontTypeMetrics(input_string, &metrics);
+    text_magick.extent(Geometry(metrics.textWidth(), metrics.textHeight()), transparent);
 
     auto color = Image::magick_color(argv[4]);
     text_magick.fillColor(color);
