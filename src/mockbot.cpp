@@ -345,19 +345,19 @@ int perform_text(int argc, char** argv, int* args_used) {
 
     Image* canvas = load_canvas(argv[2]);
     if (!canvas) {
-        std::cout << "Failed to load canvas at " << argv[2] << '\n';
+        std::cerr << "Failed to load canvas at " << argv[2] << '\n';
         return 1;
     }
 
     Image* atlas = load_letter_atlas(argv[3]);
     if (!atlas) {
-        std::cout << "Failed to load letter atlas " << argv[3] << '\n';
+        std::cerr << "Failed to load letter atlas " << argv[3] << '\n';
         return 1;
     }
 
     CharacterSet* charset = load_charset(argv[4]);
     if (!charset) {
-        std::cout << "Failed to load charset JSON " << argv[4] << '\n';
+        std::cerr << "Failed to load charset JSON " << argv[4] << '\n';
         return 2;
     }
 
@@ -369,7 +369,7 @@ int perform_text(int argc, char** argv, int* args_used) {
     const int region_height = positive_int_arg(argv[8]);
 
     if (region_width < 0 && region_height < 0) {
-        std::cout << "Please specify at least a width or a height\n";
+        std::cerr << "Please specify at least a width or a height\n";
         return 6;
     }
 
@@ -467,13 +467,13 @@ int perform_arctext(int argc, char** argv, int* args_used) {
 
     Image* atlas = load_letter_atlas(argv[3]);
     if (!atlas) {
-        std::cout << "Failed to load letter atlas\n";
+        std::cerr << "Failed to load letter atlas\n";
         return 1;
     }
 
     CharacterSet* charset = load_charset(argv[4]);
     if (!charset) {
-        std::cout << "Failed to load charset JSON\n";
+        std::cerr << "Failed to load charset JSON\n";
         return 2;
     }
 
