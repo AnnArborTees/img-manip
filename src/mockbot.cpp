@@ -361,7 +361,6 @@ int perform_text(int argc, char** argv, int* args_used) {
         return 2;
     }
 
-    // const int padding = 5; // Space between each letter ???
     char* input_string = argv[1];
     const int region_x = positive_int_arg(argv[5]);
     const int region_y = positive_int_arg(argv[6]);
@@ -583,7 +582,13 @@ int perform_ftext(int argc, char** argv, int* args_used) {
 
     Magick::TypeMetric metrics;
     text_magick.fontTypeMetrics(input_string, &metrics);
-    text_magick.extent(Geometry(metrics.textWidth(), metrics.textHeight()), transparent);
+
+    auto textarea_width = metrics.textWidth();
+    auto textarea_height = metrics.textHeight();
+    // Some fonts are taller than they claim to be
+    textarea_height += textarea_height / 2;
+
+    text_magick.extent(Geometry(textarea_width, textarea_height), transparent);
 
     auto color = Image::magick_color(argv[4]);
     text_magick.fillColor(color);
