@@ -486,12 +486,11 @@ namespace mockbot {
         using Magick::Geometry;
         using Magick::PixelPacket;
 
-        Color    clear(0,0,0,0);
+        const auto transparent = Magick::Color(0, 0, 0, MaxRGB);
         Geometry size(blit_width, blit_height);
 
-        Magick::Image m_image(size, clear);
+        Magick::Image m_image(size, transparent);
         m_image.magick("png");
-        const auto transparent = Magick::Color(0, 0, 0, MaxRGB);
         m_image.backgroundColor(transparent);
         m_image.modifyImage();
 
