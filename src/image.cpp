@@ -490,7 +490,9 @@ namespace mockbot {
         Geometry size(blit_width, blit_height);
 
         Magick::Image m_image(size, clear);
-        m_image.magick("RGBA");
+        m_image.magick("png");
+        const auto transparent = Magick::Color(0, 0, 0, MaxRGB);
+        m_image.backgroundColor(transparent);
         m_image.modifyImage();
 
         {
@@ -505,14 +507,11 @@ namespace mockbot {
                 for (int x = blit_x; x < max_x; x++) {
                     uint8_t* src_pixel = pixel(x, y);
 
-                    uint8_t a = (bytes_per_pixel == 3 ? MaxRGB : (Quantum)src_pixel[3]);
-                    if (a == MaxRGB) a -= 1;
-
                     *dest_pixel = Color(
                         px_to_quantum(src_pixel[0]),
                         px_to_quantum(src_pixel[1]),
                         px_to_quantum(src_pixel[2]),
-                        px_to_quantum(a)
+                        px_to_quantum(255 - src_pixel[3])
                     );
 
                     ++dest_pixel;
