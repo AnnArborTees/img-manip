@@ -21,6 +21,10 @@ namespace mockbot {
         int al_pad;
         int ar_pad;
     };
+    enum DimensionType {
+        Linear,
+        Angular
+    };
 
     class CharacterSet {
     public:
@@ -29,8 +33,8 @@ namespace mockbot {
         bool load_json(FILE* input);
         CharacterOffsets* operator[](char* c);
         CharacterOffsets* operator[](uint32_t codepoint);
-        void get_dimensions(char* string, int* total_width, int* total_height, int* len);
-        void get_dimensions(char* string, int* total_width, int* total_height);
+        void get_dimensions(DimensionType dim, char* string, int* total_width, int* total_height, int* len);
+        void get_dimensions(DimensionType dim, char* string, int* total_width, int* total_height);
 
     private:
         // CharacterOffsets offsets[CHARSET_OFFSET_COUNT];

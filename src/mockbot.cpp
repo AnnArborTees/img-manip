@@ -374,7 +374,7 @@ int perform_text(int argc, char** argv, int* args_used) {
 
     int total_text_width;
     int total_text_height;
-    charset->get_dimensions(input_string, &total_text_width, &total_text_height);
+    charset->get_dimensions(Linear, input_string, &total_text_width, &total_text_height);
 
     int actual_region_width, actual_region_height;
 
@@ -496,7 +496,7 @@ int perform_arctext(int argc, char** argv, int* args_used) {
     int total_text_width;
     int total_text_height;
     int char_count;
-    charset->get_dimensions(input_string, &total_text_width, &total_text_height, &char_count);
+    charset->get_dimensions(Angular, input_string, &total_text_width, &total_text_height, &char_count);
     double text_scale = (double)text_height / (double)total_text_height;
 
     int actual_text_width = int((double)total_text_width * text_scale);

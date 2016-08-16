@@ -62,7 +62,7 @@ namespace mockbot {
         return &offsets[codepoint];
     }
 
-    void CharacterSet::get_dimensions(char* string, int* total_width, int* total_height, int* len) {
+    void CharacterSet::get_dimensions(DimensionType dim, char* string, int* total_width, int* total_height, int* len) {
         int total_text_width  = 0;
         int total_text_height = 0;
         int str_len = 0;
@@ -74,8 +74,15 @@ namespace mockbot {
             uint32_t codepoint = utf8::unchecked::next(letter);
 
             auto offs = &offsets[codepoint];
-            if (offs->width >= 0)
-                total_text_width += offs->width;
+            if (offs->width >= 0) {
+                int total_padding = 0;
+                if (dim == Linear)
+                    total_padding = offs->l_pad + offs->r_pad;
+                else if (dim == Angular)
+                    total_padding = offs->al_pad + offs->ar_pad;
+
+                total_text_width += offs->width + total_padding;
+            }
             if (offs->height >= 0) {
                 if (offs->height > total_text_height)
                     total_text_height = offs->height;
@@ -87,8 +94,8 @@ namespace mockbot {
         if (len)
             *len = str_len;
     }
-    void CharacterSet::get_dimensions(char* string, int* total_width, int* total_height) {
-        get_dimensions(string, total_width, total_height, NULL);
+    void CharacterSet::get_dimensions(DimensionType dim, char* string, int* total_width, int* total_height) {
+        get_dimensions(dim, string, total_width, total_height, NULL);
     }
 
     bool CharacterSet::load_json(FILE* input) {
