@@ -15,14 +15,51 @@ namespace mockbot {
         cJSON* root;
     };
 
-    CharacterOffsets::CharacterOffsets() : x(-1), y(-1), width(-1), height(-1) {
+    CharacterOffsets::CharacterOffsets() : x(-1), y(-1), width(-1), height(-1),
+                                           l_pad(0), r_pad(0), al_pad(0), ar_pad(0) {
+    };
+
+    CharacterOffsets::CharacterOffsets(cJSON* node) : l_pad(0), r_pad(0), al_pad(0), ar_pad(0) {
+        auto element = node->child;
+        x = element->valueint;
+
+        element = element->next;
+        y = element->valueint;
+
+        element = element->next;
+        width = element->valueint;
+
+        element = element->next;
+        height = element->valueint;
+
+        element = element->next;
+        if (!element) return;
+        l_pad = element->valueint;
+
+        element = element->next;
+        if (!element) return;
+        r_pad = element->valueint;
+
+        element = element->next;
+        if (!element) return;
+        al_pad = element->valueint;
+
+        element = element->next;
+        if (!element) return;
+        ar_pad = element->valueint;
     };
 
     CharacterSet::CharacterSet() {
     }
 
-    CharacterOffsets* CharacterSet::operator[](char c) {
-        return &offsets[c];
+    CharacterOffsets* CharacterSet::operator[](char* c) {
+        char* letter = c;
+        uint32_t codepoint = utf8::unchecked::next(letter);
+        return &offsets[codepoint];
+    }
+
+    CharacterOffsets* CharacterSet::operator[](uint32_t codepoint) {
+        return &offsets[codepoint];
     }
 
     void CharacterSet::get_dimensions(char* string, int* total_width, int* total_height, int* len) {
@@ -30,10 +67,13 @@ namespace mockbot {
         int total_text_height = 0;
         int str_len = 0;
 
-        for (char* c = string; *c != '\0'; c++) {
-            str_len += 1;
-            CharacterOffsets* offs = &offsets[*c];
+        char* letter = string;
 
+        while (*letter != '\0') {
+            str_len += 1;
+            uint32_t codepoint = utf8::unchecked::next(letter);
+
+            auto offs = &offsets[codepoint];
             if (offs->width >= 0)
                 total_text_width += offs->width;
             if (offs->height >= 0) {
@@ -69,25 +109,13 @@ namespace mockbot {
 
         auto entry = root->child;
         while (entry) {
-#define NEXT { entry = entry->next; continue; }
-            // We want entries of type array and single-character names
-            if (entry->type != cJSON_Array) NEXT;
-            if (strlen(entry->string) != 1) NEXT;
-            char c = entry->string[0];
-            // if (c >= CHARSET_OFFSET_COUNT) continue; // with CHARSET_OFFSET_COUNT as 256, this will always be false
+            // We want entries of type array
+            if (entry->type != cJSON_Array) { entry = entry->next; continue; };
 
-            CharacterOffsets* offset = &offsets[c];
+            char* letter = entry->string;
+            uint32_t codepoint = utf8::unchecked::next(letter);
 
-            // read x,y,w,h from entry->child and siblings
-            auto offsetList = entry;
-#define NEXT_VALUE(_child_, _var_) { offsetList = offsetList->_child_; if (!offsetList) return false; offset->_var_ = offsetList->valueint; }
-            NEXT_VALUE(child, x);
-            NEXT_VALUE(next,  y);
-            NEXT_VALUE(next,  width);
-            NEXT_VALUE(next,  height);
-            // TODO not 100% sure why doing this causes it to work :(
-            // offset->x /= 2;
-            // offset->y /= 2;
+            offsets[codepoint] = CharacterOffsets(entry);
 
             entry = entry->next;
         }

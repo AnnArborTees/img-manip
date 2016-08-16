@@ -7,7 +7,7 @@ else
 fi
 
 gcc -c -std=c99 -o lib/cJSON.o lib/cJSON.c
-g++ src/*.cpp lib/cJSON.o -std=c++11 -Ilib -lpng -o bin/mockbot $(echo $FLAGS) `Magick++-config --cppflags --ldflags --libs`
+g++ src/*.cpp lib/cJSON.o -std=c++11 -Ilib -lpng -o bin/mockbot $(echo $FLAGS) $(Magick++-config --cppflags --ldflags --libs)
 
 if [ "$INSTALL" = "true" ]; then
   echo "Installing"

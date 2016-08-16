@@ -416,16 +416,22 @@ int perform_text(int argc, char** argv, int* args_used) {
     int char_y = region_y; // This will stay the same I suppose
 
     Compositor* comp = load_compositor(argv[9]);
-    for (char* c = input_string; *c != '\0'; c++) {
-        CharacterOffsets* offsets = (*charset)[*c];
+
+    char* letter = input_string;
+
+    while (*letter != '\0') {
+        uint32_t codepoint = utf8::unchecked::next(letter);
+        CharacterOffsets* offsets = (*charset)[codepoint];
+
         if (offsets->x < 0 || offsets->y < 0) {
             continue;
         }
         int char_width  = int((double)offsets->width  * text_scale);
         int char_height = int((double)offsets->height * text_scale);
 
+        char_x += offsets->l_pad;
         canvas->composite(*atlas, offsets, char_x, char_y, char_width, char_height, comp);
-        char_x += char_width;
+        char_x += char_width + offsets->r_pad;
     }
 
     if (!cstr_eq(argv[10], "--")) {
@@ -504,22 +510,30 @@ int perform_arctext(int argc, char** argv, int* args_used) {
     double char_angle = DEGREES(180) + start_angle + avg_angle_per_char / 2.0;
 
     Compositor* comp = load_compositor(argv[9]);
-    for (char* c = input_string; *c != '\0'; c++) {
-        CharacterOffsets* offsets = (*charset)[*c];
-        Image letter = atlas->rotated(offsets, char_angle);
 
-        int char_width  = int((double)letter.width  * text_scale);
-        int char_height = int((double)letter.height * text_scale);
+    char* letter = input_string;
+    while (*letter != '\0') {
+        uint32_t codepoint = utf8::unchecked::next(letter);
+        CharacterOffsets* offsets = (*charset)[codepoint];
+
+        Image glyph = atlas->rotated(offsets, char_angle);
+
+        int char_width  = int((double)glyph.width  * text_scale);
+        int char_height = int((double)glyph.height * text_scale);
+
+#define ANGLE(x) (((double)(x)) * (text_scale / (double)radius))
+        char_angle += ANGLE(offsets->al_pad);
 
         int char_x = int(double(radius) * cos(char_angle))
-          + center_x
-          - char_width / 2;  // origin of char at letter center
+            + center_x
+            - char_width / 2;  // origin of char at glyph center
         int char_y = int(double(radius) * sin(char_angle))
-          + center_y
-          - char_height / 2;
+            + center_y
+            - char_height / 2;
 
-        canvas->composite(letter, char_x, char_y, char_width, char_height, comp);
-        char_angle += (double)offsets->width * text_scale / (double)radius;
+        canvas->composite(glyph, char_x, char_y, char_width, char_height, comp);
+        char_angle += ANGLE(offsets->width + offsets->ar_pad);
+#undef ANGLE
     }
 
     if (!cstr_eq(argv[10], "--")) {
