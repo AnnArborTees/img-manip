@@ -1,5 +1,11 @@
 # MockBot image manipulation tool
 
+This repository contains the script we used to resize all our 14x16 150dpi images to 15x18 300dpi.
+The files for that thing are `src/amazon-resize.c` and `convert-ready.rb` (if you wanna build the
+executable you'll just have to use gcc manually).
+
+The rest of this readme will refer to the mockup tool used by our MockBot internal web app.
+
 ## REQUIREMENTS
 
 ### macOS
@@ -12,7 +18,7 @@ Get your hands on imagemagick if you don't have it already.
 
 ## TO BUILD:
 
-First,
+If you haven't already,
 
 ```
 git clone https://github.com/AnnArborTees/img-manip
@@ -26,7 +32,7 @@ The `setup.sh` script will download dependencies into the `lib` folder. These de
 
 ### In development
 
-Run `sh build.sh` or `RELEASE=true sh build.sh`
+Run `sh build.sh`, or `RELEASE=true sh build.sh` for optimizations/no debug info.
 
 ### In production
 
