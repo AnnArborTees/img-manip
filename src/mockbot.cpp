@@ -501,6 +501,7 @@ int perform_arctext(int argc, char** argv, int* args_used) {
     charset->get_dimensions(Angular, input_string, &total_text_width, &total_text_height, &char_count);
 
     bool retrying = false;
+    // TODO first and last codepoint, which end we're trying...
 
     double text_scale;
 ApplyScale:
@@ -522,7 +523,7 @@ ApplyScale:
     double start_angle = (DEGREES(180) - actual_text_angle) / 2.0;
     double avg_angle_per_char = actual_text_angle / double(char_count);
 
-    double char_angle = DEGREES(180) + start_angle + avg_angle_per_char / 2.0;
+    double char_angle = DEGREES(180) + start_angle; //+ avg_angle_per_char / 2.0;
 
     Compositor* comp = load_compositor(argv[10]);
 
@@ -579,13 +580,13 @@ ApplyScale:
         uint32_t codepoint = utf8::unchecked::next(letter);
         CharacterOffsets* offsets = (*charset)[codepoint];
 
+#define ANGLE(x) (((double)(x)) * (text_scale / (double)radius))
+        char_angle += ANGLE(offsets->width / 2 + offsets->al_pad);
+
         Image glyph = atlas->rotated(offsets, char_angle);
 
         int char_width  = int((double)glyph.width  * text_scale);
         int char_height = int((double)glyph.height * text_scale);
-
-#define ANGLE(x) (((double)(x)) * (text_scale / (double)radius))
-        char_angle += ANGLE(offsets->al_pad);
 
         int char_x = int(double(radius) * cos(char_angle))
             + center_x
@@ -599,7 +600,7 @@ ApplyScale:
         }
 
         canvas->composite(glyph, char_x, char_y, char_width, char_height, comp);
-        char_angle += ANGLE(offsets->width + offsets->ar_pad);
+        char_angle += ANGLE(offsets->width / 2 + offsets->ar_pad);
 #undef ANGLE
     }
 
