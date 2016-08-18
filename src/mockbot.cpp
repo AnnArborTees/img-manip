@@ -450,8 +450,8 @@ int perform_text(int argc, char** argv, int* args_used) {
 #define DEGREES(x) (double(x) * (M_PI / 180.0))
 
 // Syntax:
-//           (0)     (1)     (2)            (3)           (4)              (5) (6)  (7) (8) (9)  (10)
-//   mockbot arctext "Hello" img/canvas.png img/chars.png img/charset.json 100 100  200 110 over img/output.png
+//           (0)     (1)     (2)            (3)           (4)              (5) (6)  (7)  (8)(9) (10) (11)
+//   mockbot arctext "Hello" img/canvas.png img/chars.png img/charset.json 100 100  200  30 110 over img/output.png
 //
 // (0):  subcommand - always 'arctext'
 // (1):  the text to print onto the image
@@ -461,11 +461,12 @@ int perform_text(int argc, char** argv, int* args_used) {
 // (5):  x coordinate of circle center (or -- for center of image)
 // (6):  y coordinate of circle center (or -- for center of image)
 // (7):  radius of circle
-// (8):  max height of text
-// (9):  composition method ("over" or "multiply")
-// (10): output file
+// (8):  min height of text
+// (9):  max height of text
+// (10): composition method ("over" or "multiply")
+// (11): output file
 int perform_arctext(int argc, char** argv, int* args_used) {
-    *args_used = 11;
+    *args_used = 12;
     init_magick();
 
     char* input_string = argv[1];
@@ -488,16 +489,30 @@ int perform_arctext(int argc, char** argv, int* args_used) {
         return 3;
     }
 
-    int center_x    = atoi(argv[5]);
-    int center_y    = atoi(argv[6]);
-    int radius      = atoi(argv[7]);
-    int text_height = atoi(argv[8]);
+    int center_x        = atoi(argv[5]);
+    int center_y        = atoi(argv[6]);
+    int radius          = atoi(argv[7]);
+    int text_min_height = atoi(argv[8]);
+    int text_height     = atoi(argv[9]);
 
     int total_text_width;
     int total_text_height;
     int char_count;
     charset->get_dimensions(Angular, input_string, &total_text_width, &total_text_height, &char_count);
-    double text_scale = (double)text_height / (double)total_text_height;
+
+    bool retrying = false;
+
+    double text_scale;
+ApplyScale:
+    if (retrying && text_height < text_min_height) {
+        std::cerr << "text \"" << input_string << "\" is too large\n";
+        return 10;
+    }
+
+    /*if (retrying)
+        std::cout << "Trying height = " << text_height << "\n";*/
+
+    text_scale = (double)text_height / (double)total_text_height;
 
     int actual_text_width = int((double)total_text_width * text_scale);
     int actual_text_height = text_height;
@@ -509,8 +524,56 @@ int perform_arctext(int argc, char** argv, int* args_used) {
 
     double char_angle = DEGREES(180) + start_angle + avg_angle_per_char / 2.0;
 
-    Compositor* comp = load_compositor(argv[9]);
+    Compositor* comp = load_compositor(argv[10]);
 
+    // Only perform overflow check if a min_height > 0 was specified -- otherwise it's assumed
+    // we can just let the overflow happen.
+    if (text_min_height > 0) {
+        // Here we estimate the left-most pixel of the rotated letter -- if it's
+        // less than 0, we want to shrink text_height until it reaches text_min_height
+        char* firstletter = input_string;
+        uint32_t codepoint = utf8::unchecked::next(firstletter);
+        CharacterOffsets* offsets = (*charset)[codepoint];
+
+        struct { double x, y; } center;
+        center.x = offsets->width / 2.0;
+        center.y = offsets->height / 2.0;
+
+        struct { double x, y; } point1;
+        point1.x = -center.x;
+        point1.y = -center.y;
+
+        struct { double x, y; } point2;
+        point2.x = offsets->width - center.x;
+        point2.y = offsets->height - center.y;
+
+        double theta = char_angle + DEGREES(90);
+
+        struct { double x, y; } rotated1;
+        rotated1.x = point1.x*cos(theta) - point1.y*sin(theta);
+        rotated1.y = point1.x*sin(theta) + point1.y*cos(theta);
+
+        struct { double x, y; } rotated2;
+        rotated2.x = point2.x*cos(theta) - point2.y*sin(theta);
+        rotated2.y = point2.x*sin(theta) + point2.y*cos(theta);
+
+        point1.x = rotated1.x + center.x;
+        point2.x = rotated2.x + center.x;
+
+        double char_width = fmax(offsets->width, point2.x - point1.x) * text_scale;
+
+        int char_x = int(double(radius) * cos(char_angle))
+            + center_x
+            - char_width / 2;  // origin of char at glyph center
+
+        if (char_x < 0) {
+            retrying = true;
+            text_height -= 1;
+            goto ApplyScale;
+        }
+    }
+
+    bool printed_actual = false;
     char* letter = input_string;
     while (*letter != '\0') {
         uint32_t codepoint = utf8::unchecked::next(letter);
@@ -531,13 +594,17 @@ int perform_arctext(int argc, char** argv, int* args_used) {
             + center_y
             - char_height / 2;
 
+        if (!printed_actual) {
+            printed_actual = true;
+        }
+
         canvas->composite(glyph, char_x, char_y, char_width, char_height, comp);
         char_angle += ANGLE(offsets->width + offsets->ar_pad);
 #undef ANGLE
     }
 
-    if (!cstr_eq(argv[10], "--")) {
-        FILE* output_file = fopen(argv[10], "wb");
+    if (!cstr_eq(argv[11], "--")) {
+        FILE* output_file = fopen(argv[11], "wb");
         bool success = canvas->save(output_file);
         if (output_file) fclose(output_file);
         if (!success) {
@@ -550,8 +617,8 @@ int perform_arctext(int argc, char** argv, int* args_used) {
 }
 
 // Syntax:
-//           (0)  (1)     (2)            (3)             (4)     (5)     (6) (7) (8) (9) (10) (11) (12)
-//   mockbot text "Hello" img/canvas.png @font/ariel.ttf #FFFFFF #000000 2.5 120 120 700 100  over img/output.png
+//           (0)   (1)     (2)            (3)             (4)     (5)     (6) (7) (8) (9) (10) (11) (12)
+//   mockbot ftext "Hello" img/canvas.png @font/ariel.ttf #FFFFFF #000000 2.5 120 120 700 100  over img/output.png
 //
 // (0):  subcommand - always 'ftext'
 // (1):  the text to print onto the image
