@@ -5,6 +5,7 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <memory>
+#include <functional>
 
 using namespace mockbot;
 
@@ -501,10 +502,65 @@ int perform_arctext(int argc, char** argv, int* args_used) {
     charset->get_dimensions(Angular, input_string, &total_text_width, &total_text_height, &char_count);
 
     bool retrying = false;
-    // TODO first and last codepoint, which end we're trying...
+    uint32_t first_codepoint;
+    uint32_t last_codepoint = -1;
+    {
+        char* letter = input_string;
+        first_codepoint = utf8::unchecked::next(letter);
+        while (*letter != '\0')
+            last_codepoint = utf8::unchecked::next(letter);
+    }
 
-    double text_scale;
-ApplyScale:
+#define ANGLE(x) (((double)(x)) * (text_scale / (double)radius))
+    double text_scale; // text_scale defined here so we can capture its reference
+
+    // === Functions for changing the text height if letters are clipping off the image ===
+    std::function<int(CharacterOffsets* offsets, vec2, vec2, double)> check_rotated = [&text_height, radius, center_x, &text_scale](CharacterOffsets* offsets, vec2 point1, vec2 point2, double theta) {
+        vec2 center(offsets->width / 2.0, offsets->height / 2.0);
+        point1.x -= center.x;
+        point1.y -= center.y;
+        point2.x -= center.x;
+        point2.y -= center.y;
+
+        vec2 rotated1(
+            point1.x*cos(theta) - point1.y*sin(theta),
+            point1.x*sin(theta) + point1.y*cos(theta)
+        );
+
+        vec2 rotated2(
+            point2.x*cos(theta) - point2.y*sin(theta),
+            point2.x*sin(theta) + point2.y*cos(theta)
+        );
+
+        point1.x = rotated1.x + center.x;
+        point2.x = rotated2.x + center.x;
+
+        double char_width = fmax(offsets->width, point2.x - point1.x) * text_scale;
+
+        int char_x = int(double(radius) * cos(theta - DEGREES(90)))
+            + center_x
+            - char_width / 2;  // origin of char at glyph center
+
+        if (char_x < 0) {
+            return text_height - 1;
+        }
+        else {
+            return -1;
+        }
+    };
+
+    std::function<int(double)> check_first = [charset, first_codepoint, radius, &check_rotated, &text_scale](double char_angle) {
+        CharacterOffsets* offsets = (*charset)[first_codepoint];
+
+        vec2 point1(0, 0);
+        vec2 point2(offsets->width, offsets->height);
+
+        double theta = char_angle + DEGREES(90) + ANGLE(offsets->width / 2 + offsets->ar_pad);
+
+        return check_rotated(offsets, point1, point2, theta);
+    };
+
+ApplyScale:;
     if (retrying && text_height < text_min_height) {
         std::cerr << "text \"" << input_string << "\" is too large\n";
         return 10;
@@ -530,46 +586,11 @@ ApplyScale:
     // Only perform overflow check if a min_height > 0 was specified -- otherwise it's assumed
     // we can just let the overflow happen.
     if (text_min_height > 0) {
-        // Here we estimate the left-most pixel of the rotated letter -- if it's
-        // less than 0, we want to shrink text_height until it reaches text_min_height
-        char* firstletter = input_string;
-        uint32_t codepoint = utf8::unchecked::next(firstletter);
-        CharacterOffsets* offsets = (*charset)[codepoint];
+        int new_text_height = check_first(char_angle);
 
-        struct { double x, y; } center;
-        center.x = offsets->width / 2.0;
-        center.y = offsets->height / 2.0;
-
-        struct { double x, y; } point1;
-        point1.x = -center.x;
-        point1.y = -center.y;
-
-        struct { double x, y; } point2;
-        point2.x = offsets->width - center.x;
-        point2.y = offsets->height - center.y;
-
-        double theta = char_angle + DEGREES(90);
-
-        struct { double x, y; } rotated1;
-        rotated1.x = point1.x*cos(theta) - point1.y*sin(theta);
-        rotated1.y = point1.x*sin(theta) + point1.y*cos(theta);
-
-        struct { double x, y; } rotated2;
-        rotated2.x = point2.x*cos(theta) - point2.y*sin(theta);
-        rotated2.y = point2.x*sin(theta) + point2.y*cos(theta);
-
-        point1.x = rotated1.x + center.x;
-        point2.x = rotated2.x + center.x;
-
-        double char_width = fmax(offsets->width, point2.x - point1.x) * text_scale;
-
-        int char_x = int(double(radius) * cos(char_angle))
-            + center_x
-            - char_width / 2;  // origin of char at glyph center
-
-        if (char_x < 0) {
+        if (new_text_height >= 0) {
+            text_height = new_text_height;
             retrying = true;
-            text_height -= 1;
             goto ApplyScale;
         }
     }
@@ -580,7 +601,6 @@ ApplyScale:
         uint32_t codepoint = utf8::unchecked::next(letter);
         CharacterOffsets* offsets = (*charset)[codepoint];
 
-#define ANGLE(x) (((double)(x)) * (text_scale / (double)radius))
         char_angle += ANGLE(offsets->width / 2 + offsets->al_pad);
 
         Image glyph = atlas->rotated(offsets, char_angle);
