@@ -503,7 +503,7 @@ int perform_arctext(int argc, char** argv, int* args_used) {
 
     bool retrying = false;
     uint32_t first_codepoint;
-    uint32_t last_codepoint = -1;
+    uint32_t last_codepoint = 0;
     {
         char* letter = input_string;
         first_codepoint = utf8::unchecked::next(letter);
@@ -515,6 +515,9 @@ int perform_arctext(int argc, char** argv, int* args_used) {
     double text_scale; // text_scale defined here so we can capture its reference
 
     // === Functions for changing the text height if letters are clipping off the image ===
+
+    // NOTE all the various 90° angle offsets in here have to do with the way Magick++ rotates.
+
     std::function<int(CharacterOffsets* offsets, vec2, vec2, double)> check_rotated = [&text_height, radius, center_x, &text_scale](CharacterOffsets* offsets, vec2 point1, vec2 point2, double theta) {
         vec2 center(offsets->width / 2.0, offsets->height / 2.0);
         point1.x -= center.x;
@@ -541,15 +544,10 @@ int perform_arctext(int argc, char** argv, int* args_used) {
             + center_x
             - char_width / 2;  // origin of char at glyph center
 
-        if (char_x < 0) {
-            return text_height - 1;
-        }
-        else {
-            return -1;
-        }
+        return char_x;
     };
 
-    std::function<int(double)> check_first = [charset, first_codepoint, radius, &check_rotated, &text_scale](double char_angle) {
+    std::function<int(double, double)> check_first = [charset, first_codepoint, radius, &check_rotated, &text_scale](double char_angle, double actual_text_angle) {
         CharacterOffsets* offsets = (*charset)[first_codepoint];
 
         vec2 point1(0, 0);
@@ -560,9 +558,22 @@ int perform_arctext(int argc, char** argv, int* args_used) {
         return check_rotated(offsets, point1, point2, theta);
     };
 
+    std::function<int(double, double)> check_last = [charset, last_codepoint, radius, &check_rotated, &text_scale](double char_angle, double actual_text_angle) {
+        CharacterOffsets* offsets = (*charset)[last_codepoint];
+
+        vec2 point1(offsets->width, 0);
+        vec2 point2(0, offsets->height);
+
+        double theta = char_angle + actual_text_angle + DEGREES(90) + ANGLE(offsets->width + offsets->al_pad);
+
+        return check_rotated(offsets, point1, point2, theta);
+    };
+
+    std::function<int(double, double)>* checker = nullptr;
+
 ApplyScale:;
     if (retrying && text_height < text_min_height) {
-        std::cerr << "text \"" << input_string << "\" is too large\n";
+        std::cerr << "text \"" << input_string << "\" is too large to fit the minimum height of " << text_min_height << "px\n";
         return 10;
     }
 
@@ -577,19 +588,46 @@ ApplyScale:;
     double actual_text_angle = (double)actual_text_width / (double)radius;
 
     double start_angle = (DEGREES(180) - actual_text_angle) / 2.0;
-    double avg_angle_per_char = actual_text_angle / double(char_count);
 
-    double char_angle = DEGREES(180) + start_angle; //+ avg_angle_per_char / 2.0;
+    double char_angle = DEGREES(180) + start_angle;
 
     Compositor* comp = load_compositor(argv[10]);
 
     // Only perform overflow check if a min_height > 0 was specified -- otherwise it's assumed
     // we can just let the overflow happen.
     if (text_min_height > 0) {
-        int new_text_height = check_first(char_angle);
+        int char_x;
 
-        if (new_text_height >= 0) {
-            text_height = new_text_height;
+        if (checker == nullptr) {
+            if (last_codepoint == 0) {
+                checker = &check_first;
+            }
+            else {
+                // Check both ends -- whichever is further to off the edge will be checked for the rest of the operation.
+                int left_x  = check_first(char_angle, actual_text_angle);
+                int right_x = check_last(char_angle, actual_text_angle);
+                int left_diff  = 0 - left_x;
+                int right_diff = right_x - canvas->width;
+
+                if (left_diff > 0 && left_diff > right_diff) {
+                    checker = &check_first;
+                    char_x = left_x;
+                }
+                if (right_diff > 0 && right_diff > left_diff) {
+                    checker = &check_last;
+                    char_x = right_x;
+                }
+
+                // Skip running the checker since we already have char_x assigned.
+                goto CheckOverflow;
+            }
+        }
+
+        char_x = (*checker)(char_angle, actual_text_angle);
+
+    CheckOverflow:;
+        if (char_x < 0 || char_x >= canvas->width) {
+            text_height -= 1;
             retrying = true;
             goto ApplyScale;
         }
