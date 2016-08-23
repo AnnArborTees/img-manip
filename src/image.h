@@ -8,8 +8,9 @@
 #include <Magick++.h>
 
 // Accepted color types:
-#define COLOR_TYPE_RGBA 6
-#define COLOR_TYPE_RGB  2
+#define COLOR_TYPE_RGBA    6
+#define COLOR_TYPE_RGB     2
+#define COLOR_TYPE_PALETTE 3
 
 namespace mockbot {
     union vec2 {

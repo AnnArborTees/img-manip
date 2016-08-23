@@ -188,6 +188,15 @@ namespace mockbot {
         switch (color_type) {
         case COLOR_TYPE_RGB:  bytes_per_pixel = 3; break;
         case COLOR_TYPE_RGBA: bytes_per_pixel = 4; break;
+        case COLOR_TYPE_PALETTE:
+            png_set_expand(r.png);
+            if (png_get_valid(r.png, r.info, PNG_INFO_tRNS)) {
+                png_set_expand(r.png);
+                bytes_per_pixel = 4;
+            }
+            else
+                bytes_per_pixel = 3;
+            break;
         default:
             error = "Unsupported color type: " + std::to_string(color_type);
             return false;
@@ -196,8 +205,9 @@ namespace mockbot {
         // This probably won't ever show up in our case.
         if (bit_depth == 16) {
             png_set_strip_16(r.png);
-            png_read_update_info(r.png, r.info);
         }
+
+        png_read_update_info(r.png, r.info);
 
         uint32_t rowbytes = png_get_rowbytes(r.png, r.info);
         image_data = (uint8_t*)malloc(rowbytes * height);
@@ -234,7 +244,7 @@ namespace mockbot {
         png_set_IHDR(
             w.png, w.info,
             width, height,
-            bit_depth, bytes_per_pixel == 4 ? COLOR_TYPE_RGBA : COLOR_TYPE_RGB,
+            8, bytes_per_pixel == 4 ? COLOR_TYPE_RGBA : COLOR_TYPE_RGB,
             PNG_INTERLACE_ADAM7,
             PNG_COMPRESSION_TYPE_DEFAULT,
             PNG_FILTER_TYPE_DEFAULT

@@ -137,7 +137,7 @@ int perform_composite(int argc, char** argv, int* args_used) {
         bool success = img2->load_file(f2);
         if (f2) fclose(f2);
         if (!success) {
-            std::cerr << "Failed decode img2: " << argv[2] << '\n';
+            std::cerr << "Failed decode img2: " << argv[2] << ": " << img2->last_error() << '\n';
             return 2;
         }
     }
@@ -157,7 +157,7 @@ int perform_composite(int argc, char** argv, int* args_used) {
         bool success = img1->load_file(f1);
         if (f1) fclose(f1);
         if (!success) {
-            std::cerr << "Failed decode img1: " << argv[1] << '\n';
+            std::cerr << "Failed decode img1: " << argv[1] << ": " << img1->last_error() << '\n';
             return 2;
         }
     }
