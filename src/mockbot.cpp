@@ -727,6 +727,8 @@ int perform_ftext(int argc, char** argv, int* args_used) {
     auto textarea_height = metrics.textHeight();
     // Some fonts are taller than they claim to be
     textarea_height += textarea_height / 2;
+    // And on Linux, some fonts are wider than they claim to be!
+    textarea_width += textarea_width / 3;
 
     text_magick.extent(Geometry(textarea_width, textarea_height), transparent);
 
