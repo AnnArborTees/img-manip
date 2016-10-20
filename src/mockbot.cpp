@@ -891,10 +891,55 @@ bool run(int* pargc, char*** pargv) {
     return true;
 }
 
+int examine(int argc, char** argv) {
+  enum {
+    ARGUMENT,
+    COMMAND
+  } state = COMMAND;
+  int argnum = 0;
+
+  // Remove "examine" from args
+  argc -= 1;
+  argv += 1;
+
+  for (int i = 0; i < argc; ++i) {
+    const char* arg = argv[i];
+
+    if (cstr_eq(arg, "composite")
+       || cstr_eq(arg, "thumbnail")
+       || cstr_eq(arg, "text")
+       || cstr_eq(arg, "ftext")
+       || cstr_eq(arg, "arctext")
+    ) {
+      state = COMMAND;
+      argnum = 1;
+      std::cout << '\n';
+    }
+    else
+      state = ARGUMENT;
+
+    switch (state) {
+    case ARGUMENT:
+      std::cout << '(' << argnum << ')' << '\t';
+      ++argnum;
+    case COMMAND:
+      std::cout << arg << '\n';
+    }
+  }
+
+  return 0;
+}
+
 int main(int argc, char** argv) {
     // First arg is application path
     argc -= 1;
     argv += 1;
+
+    const std::string examine_cmd = "examine";
+
+    if (argv[0] == examine_cmd)
+      return examine(argc, argv);
+
     while (run(&argc, &argv)) {}
 
     return 0;
