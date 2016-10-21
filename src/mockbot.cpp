@@ -939,7 +939,7 @@ int main(int argc, char** argv) {
 
     const std::string examine_cmd = "examine";
 
-    if (argv[0] == examine_cmd)
+    if (argc >= 1 && argv[0] == examine_cmd)
       return examine(argc, argv);
 
     while (run(&argc, &argv)) {}
