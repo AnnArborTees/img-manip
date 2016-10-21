@@ -274,7 +274,7 @@ do {                                                                            
     double art_width  = (double)std::stoi(std::string(argv[10]));
     double art_height = (double)std::stoi(std::string(argv[11]));
     double dpadding   = (double)padding;
-    double target_box = double(canvas_dim) - (2.0 * dpadding);
+    double target_box = (double)canvas_dim - (2.0 * dpadding);
     double img_width, img_height;
     double width, height; // these width,height,x,y variables are in copped&resized image space
     double x, y;

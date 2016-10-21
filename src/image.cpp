@@ -1,6 +1,8 @@
 #include "image.h"
 #include <memory>
+#include <vector>
 #include <stdlib.h>
+#include <cassert>
 #define _USE_MATH_DEFINES
 #include <math.h>
 // NOTE iostream for debugging only here
@@ -405,7 +407,8 @@ namespace mockbot {
         int max_y = other_y + other_new_height;
 
         // Used to store the pixel average when scaling down.
-        double new_pixel[4];
+        // double new_pixel[4];
+        double avg_blended_pixel[4];
 
         // NOTE: x and y are in this's image space.
         for (int y = other_y; y < max_y; y++) {
@@ -431,48 +434,52 @@ namespace mockbot {
                 int finish_y = (int)oldsrc_y_end;
 
                 for (int i = 0; i < other.bytes_per_pixel; i++)
-                    new_pixel[i] = 0.0;
+                    avg_blended_pixel[i] = 0.0;
+
+                // NEW METHOD: blend and THEN resize.
+                // We blend each oldsrc pixel onto the one dest pixel
+                double dest_alpha = px_to_real(px_alpha(dest_pixel, bytes_per_pixel));
 
                 for (int v = start_y; v < finish_y; v++) {
-                    for (int u = start_x; u < finish_x; u++) {
-                        total_count += 1.0;
-                        uint8_t* oldsrc_pixel = other.pixel(u, v);
+                  for (int u = start_x; u < finish_x; u++) {
+                    // == Collect info from src ==
+                    uint8_t* oldsrc_pixel = other.pixel(u, v);
 
-                        for (int i = 0; i < other.bytes_per_pixel; i++)
-                            new_pixel[i] += px_to_real(oldsrc_pixel[i]);
+                    double src_alpha;
+                    if (other.bytes_per_pixel == 4)
+                      src_alpha = px_to_real(oldsrc_pixel[3]);
+                    else
+                      src_alpha = 1.0;
+
+                    double one_minus_src_alpha = 1.0 - src_alpha;
+                    double inv_alpha = 1.0 / (src_alpha + dest_alpha * one_minus_src_alpha);
+
+                    // == Blend into destination ==
+                    for (int i = 0; i < 3; i++) {
+                      double dest_color = px_to_real(dest_pixel[i]);
+                      double src_color = px_to_real(oldsrc_pixel[i]);
+
+                      double new_color = comp->blend_color(src_color, src_alpha, dest_color, dest_alpha, one_minus_src_alpha) * inv_alpha;
+                      if (new_color > 1.0)
+                        new_color = 1.0;
+
+                      avg_blended_pixel[i] += new_color;
                     }
+
+                    // == Blend alpha if necessary ==
+                    if (bytes_per_pixel == 4) {
+                      double alpha = comp->blend_alpha(src_alpha, dest_alpha);
+                      if (alpha > 1.0) alpha = 1.0;
+                      avg_blended_pixel[3] += alpha;
+                    }
+
+                    total_count += 1.0;
+                  }
                 }
 
-                // Compute average and convert back to 1byte colors
-                double dest_alpha = px_to_real(px_alpha(dest_pixel, bytes_per_pixel));
-                double src_alpha;
-                if (other.bytes_per_pixel == 4)
-                    src_alpha = new_pixel[3] / total_count;
-                else
-                    src_alpha = 1.0;
-
-                double one_minus_src_alpha = 1.0 - src_alpha;
-                // NOTE This (inv_alpha) only has an effect when the image is blending into empty space (dest_alpha = 0)
-                // which won't happen in our use case as far as I know.
-                //
-                double inv_alpha = 1.0 / (src_alpha + dest_alpha * one_minus_src_alpha);
-                //
-                // Multiplying the result of comp->blend_color by inv_alpha will make compositing onto emptiness work.
-
-                for (int i = 0; i < 3; i++) {
-                    double dest_color = px_to_real(dest_pixel[i]);
-                    double src_color  = new_pixel[i] / total_count;
-
-                    double new_color = comp->blend_color(src_color, src_alpha, dest_color, dest_alpha, one_minus_src_alpha) * inv_alpha;
-                    if (new_color > 1.0) new_color = 1.0;
-
-                    dest_pixel[i] = real_to_px(new_color);
-                }
-                if (bytes_per_pixel == 4) {
-                    double alpha = comp->blend_alpha(src_alpha, dest_alpha);
-                    if (alpha > 1.0) alpha = 1.0;
-                    dest_pixel[3] = real_to_px(alpha);
-                }
+                // == Apply average ==
+                for (int i = 0; i < bytes_per_pixel; i++)
+                  dest_pixel[i] = real_to_px(avg_blended_pixel[i] / total_count);
             }
         }
 
