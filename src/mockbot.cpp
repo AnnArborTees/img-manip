@@ -864,6 +864,31 @@ int perform_letter(int argc, char** argv, int* args_used) {
     return 0;
 };
 
+int perform_test(int argc, char** argv, int* args_used) {
+    int current_arg = 1;
+    auto next_arg = [&current_arg, &args_used, argv]() { ++args_used; return argv[current_arg++]; };
+    uint8_t color[4] = {0xFF/2, 0xFF/2, 0, 0xFF};
+
+    Image canvas;
+    canvas.fill_blank(color, 500, 500);
+
+    Image swash;
+    LOAD_IMAGE(swash, next_arg());
+
+    canvas.composite(swash, 0, 0, 500, 500, &composite_multiply);
+    FILE* result = fopen(next_arg(), "wb");
+    if (!result) {
+        std::cerr << "Failed to open output file\n";
+        return 1;
+    }
+    if (!canvas.save(result)) {
+        std::cerr << "Failed to save to output file: " << canvas.last_error() << "\n";
+        return 1;
+    }
+
+    return 0;
+}
+
 bool run(int* pargc, char*** pargv) {
     if ((*pargc) < 1)
         return false;
@@ -877,6 +902,7 @@ bool run(int* pargc, char*** pargv) {
     else if (cstr_eq(subcommand, "text"))      return_code = perform_text((*pargc), (*pargv), &args_used);
     else if (cstr_eq(subcommand, "ftext"))     return_code = perform_ftext((*pargc), (*pargv), &args_used);
     else if (cstr_eq(subcommand, "arctext"))   return_code = perform_arctext((*pargc), (*pargv), &args_used);
+    else if (cstr_eq(subcommand, "test"))      return_code = perform_test((*pargc), (*pargv), &args_used);
     else {
         std::cerr << "Invalid subcommand \"" << subcommand << "\"\n";
         return false;
