@@ -403,14 +403,14 @@ namespace mockbot {
         double x_old_step = max(x_old_per_new, 1.0);
         double y_old_step = max(y_old_per_new, 1.0);
 
+        // `other_x` and `other_y` represent where on `this` we wish to place `other`.
         int max_x = other_x + other_new_width;
         int max_y = other_y + other_new_height;
 
         // Used to store the pixel average when scaling down.
-        // double new_pixel[4];
         double avg_blended_pixel[4];
 
-        // NOTE: x and y are in this's image space.
+        // NOTE: x and y are in the image space of `this`
         for (int y = other_y; y < max_y; y++) {
             if (y < 0 || y >= height) continue;
 
@@ -426,14 +426,14 @@ namespace mockbot {
                 double oldsrc_x_end = oldsrc_x_begin + x_old_step;
                 double oldsrc_y_end = oldsrc_y_begin + y_old_step;
 
-                // Gather sum for average:
+                // Prepare to loop through pixels in `other`.
                 double total_count = 0.0;
                 int start_x = (int)oldsrc_x_begin;
                 int start_y = (int)oldsrc_y_begin;
                 int finish_x = (int)oldsrc_x_end;
                 int finish_y = (int)oldsrc_y_end;
 
-                for (int i = 0; i < other.bytes_per_pixel; i++)
+                for (int i = 0; i < 4; i++)
                     avg_blended_pixel[i] = 0.0;
 
                 // NEW METHOD: blend and THEN resize.
@@ -441,45 +441,43 @@ namespace mockbot {
                 double dest_alpha = px_to_real(px_alpha(dest_pixel, bytes_per_pixel));
 
                 for (int v = start_y; v < finish_y; v++) {
-                  for (int u = start_x; u < finish_x; u++) {
-                    // == Collect info from src ==
-                    uint8_t* oldsrc_pixel = other.pixel(u, v);
+                    for (int u = start_x; u < finish_x; u++) {
+                        // == Collect info from src ==
+                        uint8_t* oldsrc_pixel = other.pixel(u, v);
 
-                    double src_alpha;
-                    if (other.bytes_per_pixel == 4)
-                      src_alpha = px_to_real(oldsrc_pixel[3]);
-                    else
-                      src_alpha = 1.0;
+                        const double src_alpha =
+                            (other.bytes_per_pixel == 4) ?
+                                px_to_real(oldsrc_pixel[3]) : 1.0;
 
-                    double one_minus_src_alpha = 1.0 - src_alpha;
-                    double inv_alpha = 1.0 / (src_alpha + dest_alpha * one_minus_src_alpha);
+                        const double one_minus_src_alpha = 1.0 - src_alpha;
+                        const double inv_alpha = 1.0 / (src_alpha + dest_alpha * one_minus_src_alpha);
 
-                    // == Blend into destination ==
-                    for (int i = 0; i < 3; i++) {
-                      double dest_color = px_to_real(dest_pixel[i]);
-                      double src_color = px_to_real(oldsrc_pixel[i]);
+                        // == Blend into destination ==
+                        for (int i = 0; i < 3; i++) {
+                            double dest_color = px_to_real(dest_pixel[i]);
+                            double src_color = px_to_real(oldsrc_pixel[i]);
 
-                      double new_color = comp->blend_color(src_color, src_alpha, dest_color, dest_alpha, one_minus_src_alpha) * inv_alpha;
-                      if (new_color > 1.0)
-                        new_color = 1.0;
+                            double new_color = comp->blend_color(src_color, src_alpha, dest_color, dest_alpha, one_minus_src_alpha) * inv_alpha;
+                            if (new_color > 1.0)
+                                new_color = 1.0;
 
-                      avg_blended_pixel[i] += new_color;
+                            avg_blended_pixel[i] += new_color;
+                        }
+
+                        // == Blend alpha if necessary ==
+                        if (bytes_per_pixel == 4) {
+                            double alpha = comp->blend_alpha(src_alpha, dest_alpha);
+                            if (alpha > 1.0) alpha = 1.0;
+                            avg_blended_pixel[3] += alpha;
+                        }
+
+                        total_count += 1.0;
                     }
-
-                    // == Blend alpha if necessary ==
-                    if (bytes_per_pixel == 4) {
-                      double alpha = comp->blend_alpha(src_alpha, dest_alpha);
-                      if (alpha > 1.0) alpha = 1.0;
-                      avg_blended_pixel[3] += alpha;
-                    }
-
-                    total_count += 1.0;
-                  }
                 }
 
                 // == Apply average ==
                 for (int i = 0; i < bytes_per_pixel; i++)
-                  dest_pixel[i] = real_to_px(avg_blended_pixel[i] / total_count);
+                    dest_pixel[i] = real_to_px(avg_blended_pixel[i] / total_count);
             }
         }
 

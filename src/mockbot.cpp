@@ -864,18 +864,22 @@ int perform_letter(int argc, char** argv, int* args_used) {
     return 0;
 };
 
+// NOTE this isn't a real command and doesn't play nicely with args_used
 int perform_test(int argc, char** argv, int* args_used) {
     int current_arg = 1;
     auto next_arg = [&current_arg, &args_used, argv]() { ++args_used; return argv[current_arg++]; };
     uint8_t color[4] = {0xFF/2, 0xFF/2, 0, 0xFF};
 
     Image canvas;
-    canvas.fill_blank(color, 500, 500);
+    auto canvas_name = next_arg();
+    LOAD_IMAGE(canvas, canvas_name);
 
     Image swash;
-    LOAD_IMAGE(swash, next_arg());
+    auto swash_name = next_arg();
+    LOAD_IMAGE(swash, swash_name);
 
-    canvas.composite(swash, 0, 0, 500, 500, &composite_multiply);
+    canvas.composite(swash, 0, 0, 500, 500, &composite_over);
+
     FILE* result = fopen(next_arg(), "wb");
     if (!result) {
         std::cerr << "Failed to open output file\n";
