@@ -20,7 +20,7 @@ Get your hands on imagemagick if you don't have it already.
 
 If you haven't already,
 
-```
+```bash
 git clone https://github.com/AnnArborTees/img-manip
 cd img-manip
 sh setup.sh
@@ -32,7 +32,7 @@ The `setup.sh` script will download dependencies into the `lib` folder. These de
 
 ### In development
 
-Run `sh build.sh`, or `RELEASE=true sh build.sh` for optimizations/no debug info.
+Run `sh build.sh`, or `RELEASE=true sh build.sh` for optimizations and such.
 
 ### In production
 
@@ -40,3 +40,17 @@ If you already have `mockbot` in your PATH, run `sh update.sh`.
 
 Otherwise, do `RELEASE=true sh build.sh` then add `bin/mockbot` to your PATH somehow.
 (copy it to `/usr/bin`, add `./bin` to PATH, whatever.)
+
+### Deployment
+
+From your local machine, run `ruby deploy.rb`. This uses the AWS CLI to find EC2 instances
+with the "mockbot" role (same "Role" tag that `cap-ec2` uses.)
+
+Some caveats:
+
+* You must input your GitHub credentials. At some point, we should use git@github.com instead
+  of https://github.com for this repository on the production servers.
+* It is assumed that the `img-manip` repository is cloned into `/home/ubuntu/img-manip`
+  on all production servers.
+* This script uses `update.sh` on the remote servers, so the requirements for "In production"
+  apply.
