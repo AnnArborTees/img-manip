@@ -6,6 +6,7 @@
 #include <math.h>
 #include <memory>
 #include <functional>
+#include <unordered_map>
 
 using namespace mockbot;
 
@@ -894,19 +895,26 @@ int perform_test(int argc, char** argv, int* args_used) {
 }
 
 bool run(int* pargc, char*** pargv) {
+    static std::unordered_map<std::string, std::function<int(int,char**,int*)>> subcommands = {
+        {
+            { "composite", perform_composite },
+            { "thumbnail", perform_thumbnail },
+            { "text", perform_text },
+            { "ftext", perform_ftext },
+            { "arctext", perform_arctext },
+            { "test", perform_test }
+        }
+    };
+
     if ((*pargc) < 1)
         return false;
 
-    const char* subcommand = (*pargv)[0];
+    std::string subcommand((*pargv)[0]);
     int return_code;
     int args_used;
 
-    if      (cstr_eq(subcommand, "composite")) return_code = perform_composite((*pargc), (*pargv), &args_used);
-    else if (cstr_eq(subcommand, "thumbnail")) return_code = perform_thumbnail((*pargc), (*pargv), &args_used);
-    else if (cstr_eq(subcommand, "text"))      return_code = perform_text((*pargc), (*pargv), &args_used);
-    else if (cstr_eq(subcommand, "ftext"))     return_code = perform_ftext((*pargc), (*pargv), &args_used);
-    else if (cstr_eq(subcommand, "arctext"))   return_code = perform_arctext((*pargc), (*pargv), &args_used);
-    else if (cstr_eq(subcommand, "test"))      return_code = perform_test((*pargc), (*pargv), &args_used);
+    if (subcommands.count(subcommand) > 0)
+        return_code = subcommands[subcommand]((*pargc), (*pargv), &args_used);
     else {
         std::cerr << "Invalid subcommand \"" << subcommand << "\"\n";
         return false;
