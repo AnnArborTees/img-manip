@@ -583,8 +583,8 @@ public:
 
 
 // Syntax:
-//           (0)   (1)     (2)            (3)             (4)     (5)     (6) (7) (8) (9) (10) (11) (12)
-//   mockbot ftext "Hello" img/canvas.png @font/ariel.ttf #FFFFFF #000000 2.5 120 120 700 100  over img/output.png
+//           (0)   (1)     (2)            (3)             (4)     (5)     (6) (7) (8) (9) (10) (11) (12) (13)
+//   mockbot ftext "Hello" img/canvas.png @font/ariel.ttf #FFFFFF #000000 2.5 0   120 120 700  100  over img/output.png
 //
 // (0):  subcommand - always 'ftext'
 // (1):  the text to print onto the image
@@ -593,15 +593,16 @@ public:
 // (4):  font color
 // (5):  font outline color or "--" for no outline
 // (6):  font outline width
-// (7):  rectangle x
-// (8):  rectangle y
-// (9):  rectangle width
-// (10): rectangle height
-// (11): composition method
-// (12): output file
+// (7):  font canvas padding
+// (8):  rectangle x
+// (9):  rectangle y
+// (10): rectangle width
+// (11): rectangle height
+// (12): composition method
+// (13): output file
 class FTextRoutine : public Routine {
 public:
-    int args_used() const { return 13; }
+    int args_used() const { return 14; }
 
     int perform(Session &session, char** argv) {
         using Magick::Quantum;
@@ -619,10 +620,11 @@ public:
             return 3;
         }
 
-        int dest_x      = atoi(argv[7]);
-        int dest_y      = atoi(argv[8]);
-        int dest_width  = atoi(argv[9]);
-        int dest_height = atoi(argv[10]);
+        int padding     = atoi(argv[7]);
+        int dest_x      = atoi(argv[8]);
+        int dest_y      = atoi(argv[9]);
+        int dest_width  = atoi(argv[10]);
+        int dest_height = atoi(argv[11]);
 
         auto transparent = Magick::Color(0, 0, 0, MaxRGB);
         Magick::Image text_magick(Geometry(0, 0), transparent);
@@ -656,11 +658,11 @@ public:
             overdraw = true;
         }
 
-        text_magick.annotate(input_string, Magick::NorthWestGravity);
+        text_magick.annotate(input_string, Geometry(padding, 0), Magick::NorthWestGravity);
         if (overdraw) {
             text_magick.strokeColor(color);
             text_magick.strokeWidth(0.5);
-            text_magick.annotate(input_string, Magick::NorthWestGravity);
+            text_magick.annotate(input_string, Geometry(padding, 0), Magick::NorthWestGravity);
         }
 
         int text_width  = 0;
@@ -693,15 +695,15 @@ public:
             }
         }
 
-        std::cout << "Text turned out to be " << text_width << 'x' << text_height << '\n';
+        // std::cout << "Text turned out to be " << text_width << 'x' << text_height << '\n';
 
         Image text_image(text_magick);
 
-        Compositor* comp = session.load_compositor(argv[11]);
+        Compositor* comp = session.load_compositor(argv[12]);
         canvas->composite(text_image, 0, 0, text_width, text_height, dest_x, dest_y, dest_width, dest_height, comp);
 
-        if (!cstr_eq(argv[12], "--")) {
-            FILE* output_file = fopen(argv[12], "wb");
+        if (!cstr_eq(argv[13], "--")) {
+            FILE* output_file = fopen(argv[13], "wb");
             bool success = canvas->save(output_file);
             if (output_file) fclose(output_file);
             if (!success) {
