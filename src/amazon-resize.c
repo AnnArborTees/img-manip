@@ -1,3 +1,8 @@
+//
+// NOTE this file was used for resizing 14x16 artworks to 15x18
+// for MBA and is not actually a part of the mockup tool `mockbot`
+//
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

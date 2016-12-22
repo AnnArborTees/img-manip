@@ -894,18 +894,19 @@ int perform_test(int argc, char** argv, int* args_used) {
     return 0;
 }
 
-bool run(int* pargc, char*** pargv) {
-    static std::unordered_map<std::string, std::function<int(int,char**,int*)>> subcommands = {
-        {
-            { "composite", perform_composite },
-            { "thumbnail", perform_thumbnail },
-            { "text", perform_text },
-            { "ftext", perform_ftext },
-            { "arctext", perform_arctext },
-            { "test", perform_test }
-        }
-    };
+static std::unordered_map<std::string, std::function<int(int,char**,int*)>> SUBCOMMANDS = {
+    {
+        { "composite", perform_composite },
+        { "thumbnail", perform_thumbnail },
+        { "text", perform_text },
+        { "ftext", perform_ftext },
+        { "arctext", perform_arctext },
+        { "test", perform_test }
+    }
+};
 
+
+bool run(int* pargc, char*** pargv) {
     if ((*pargc) < 1)
         return false;
 
@@ -913,8 +914,8 @@ bool run(int* pargc, char*** pargv) {
     int return_code;
     int args_used;
 
-    if (subcommands.count(subcommand) > 0)
-        return_code = subcommands[subcommand]((*pargc), (*pargv), &args_used);
+    if (SUBCOMMANDS.count(subcommand) > 0)
+        return_code = SUBCOMMANDS[subcommand]((*pargc), (*pargv), &args_used);
     else {
         std::cerr << "Invalid subcommand \"" << subcommand << "\"\n";
         return false;
@@ -943,14 +944,9 @@ int examine(int argc, char** argv) {
   argv += 1;
 
   for (int i = 0; i < argc; ++i) {
-    const char* arg = argv[i];
+    std::string arg = argv[i];
 
-    if (cstr_eq(arg, "composite")
-       || cstr_eq(arg, "thumbnail")
-       || cstr_eq(arg, "text")
-       || cstr_eq(arg, "ftext")
-       || cstr_eq(arg, "arctext")
-    ) {
+    if (SUBCOMMANDS.count(arg) > 0) {
       state = COMMAND;
       argnum = 1;
       std::cout << '\n';
