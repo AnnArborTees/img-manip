@@ -22,12 +22,18 @@ bool run(Session &session, int* pargc, char*** pargv) {
         auto routine = Routine::subcommands[subcommand];
         args_needed = routine->args_used();
 
+        //
+        // Make sure we have enough args
+        //
         if (args_needed > *pargc) {
             std::cerr << "Not enough arguments for \"" << subcommand << "\" "
                       << "(needs " << args_needed << ", have " << *pargc << " left)\n";
             return false;
         }
 
+        //
+        // Perform the routine
+        //
         return_code = routine->perform(session, (*pargv));
     }
     else {
@@ -40,6 +46,9 @@ bool run(Session &session, int* pargc, char*** pargv) {
         return false;
     }
 
+    //
+    // "Consume" the arguments used
+    //
     *pargc -= args_needed;
     *pargv += args_needed;
 
@@ -83,9 +92,9 @@ int examine(int argc, char** argv) {
 int help(int argc, char** argv) {
     std::cout << "Available subcommands: ";
     for (auto &r : Routine::subcommands) {
-        std::cout << '"' << r.first << '"' << ' ';
+        std::cout << '"' << r.first << '"' << " -- requires "
+                  << r.second->args_used() << " arguments\n";
     }
-    std::cout << '\n';
     return 0;
 }
 
