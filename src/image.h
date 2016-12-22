@@ -1,3 +1,5 @@
+#ifndef IMAGE_H
+#define IMAGE_H
 #include "character_set.h"
 #include <inttypes.h>
 #include <png.h>
@@ -129,3 +131,4 @@ namespace mockbot {
         std::string error;
     };
 }
+#endif // IMAGE_H
