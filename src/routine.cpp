@@ -1,4 +1,5 @@
 #include "routine.h"
+#include <list>
 #define DEGREES(x) (double(x) * (M_PI / 180.0))
 
 namespace mockbot {
@@ -658,11 +659,12 @@ public:
             overdraw = true;
         }
 
-        text_magick.annotate(input_string, Geometry(padding, 0), Magick::NorthWestGravity);
+        auto offset = Geometry(textarea_width - padding, textarea_height, padding, 0);
+        text_magick.annotate(input_string, offset);
         if (overdraw) {
             text_magick.strokeColor(color);
             text_magick.strokeWidth(0.5);
-            text_magick.annotate(input_string, Geometry(padding, 0), Magick::NorthWestGravity);
+            text_magick.annotate(input_string, offset);
         }
 
         int text_width  = 0;
