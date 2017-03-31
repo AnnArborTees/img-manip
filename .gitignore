@@ -4,3 +4,5 @@ bin/
 *.sublime-workspace
 lib/
 .byebug_history
+*.swp
+ImageMagick*
