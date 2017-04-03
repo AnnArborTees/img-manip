@@ -14,7 +14,9 @@ bin/mockbot: lib lib/cJSON.o $(wildcard src/*.cpp) $(wildcard src/*.h)
 	mkdir -p bin
 	$(CXX) $(FLAGS) $(wildcard src/*.cpp) -o $@
 
-update: install
+update: bin/mockbot
+	cp bin/mockbot /usr/bin/mockbot
+
 install: bin/mockbot
 	cp bin/mockbot /usr/bin/mockbot
 
