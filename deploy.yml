@@ -1,0 +1,137 @@
+---
+- name: Download and compile imagemagick from source
+  hosts: mockbot
+  vars:
+    home: "/home/ubuntu"
+    imagemagick: "ImageMagick-6.9.9-3"
+
+  tasks:
+    - name: Ensure sources folder exists
+      file:
+        path: "{{ home }}/sources"
+        state: directory
+
+    - name: See if we need to extract
+      stat: "path={{ home }}/sources/{{ imagemagick }}"
+      register: magickpath
+
+    - name: Extract ImageMagick
+      unarchive:
+        src: "https://www.imagemagick.org/download/{{ imagemagick }}.tar.bz2"
+        dest: "{{ home }}/sources"
+        remote_src: True
+      when: not magickpath.stat.exists
+
+    - name: See if we have a Makefile
+      stat: "path={{ home }}/sources/{{ imagemagick }}/Makefile"
+      register: makefile
+
+    - name: Run ./configure
+      shell: ./configure
+      args:
+        chdir: "{{ home }}/sources/{{ imagemagick }}"
+      when: not makefile.stat.exists
+
+    - name: Run make
+      shell: make
+      args:
+        chdir: "{{ home }}/sources/{{ imagemagick }}"
+      register: make_result
+      changed_when: "make_result.stdout.find(\"Nothing to be done for 'all'\") != -1"
+
+
+
+- name: As root, install the new imagemagick version
+  hosts: mockbot
+  become: yes
+  become_method: sudo
+  vars:
+    home: "/home/ubuntu"
+    imagemagick: "ImageMagick-6.9.9-3"
+    shared_object: "libMagick++-6.Q16.so.8"
+
+  tasks:
+    - name: Run make install
+      shell: make install
+      args:
+        chdir: "{{ home }}/sources/{{ imagemagick }}"
+
+    - name: Remove extraneous Magick++-config binary
+      file:
+        path: "/usr/bin/Magick++-config"
+        state: absent
+
+    - name: Symlink magick++ shared object for runtime use
+      file:
+        src: "{{ home }}/sources/{{ imagemagick }}/Magick++/lib/.libs/{{ shared_object }}"
+        dest: "/usr/lib/{{ shared_object }}"
+        state: link
+
+
+
+- name: Set up img-manip
+  hosts: mockbot
+  vars:
+    home: "/home/ubuntu"
+
+  tasks:
+    - name: Clone img-manip
+      git:
+        repo: "ssh://git@github.com/AnnArborTees/img-manip.git"
+        dest: "{{ home }}/img-manip"
+
+    - name: Create lib folder
+      file:
+        path: "{{ home }}/img-manip/lib"
+        state: directory
+
+    - name: Get cJSON
+      get_url:
+        url: "https://github.com/DaveGamble/cJSON/raw/master/{{ item }}"
+        dest: "{{ home }}/img-manip/lib/{{ item }}"
+      with_items:
+        - cJSON.c
+        - cJSON.h
+
+    - name: Get utf8 library
+      get_url:
+        url: "http://downloads.sourceforge.net/project/utfcpp/utf8cpp_2x/Release%202.3.4/utf8_v2_3_4.zip?r=https%3A%2F%2Fsourceforge.net%2Fprojects%2Futfcpp%2Ffiles%2Futf8cpp_2x%2FRelease%25202.3.4%2Futf8_v2_3_4.zip%2Fdownload%3Fuse_mirror%3Dpilotfiber&ts=1471293028&use_mirror=heanet"
+        dest: "{{ home }}/img-manip/lib/utf8.zip"
+
+    - name: Set up utf8 library
+      shell: |
+        unzip lib/utf8.zip source/utf8/checked.h source/utf8/unchecked.h source/utf8/core.h -d lib
+        mkdir -p lib/utf8
+        mv lib/source/utf8/*.h lib/utf8
+        rm -rf lib/source
+      args:
+        chdir: "{{ home }}/img-manip"
+        creates: lib/utf8/
+
+    - name: Build img-manip
+      shell: make
+      args:
+        chdir: "{{ home }}/img-manip"
+      register: make_result
+      changed_when: "make_result.stdout.find(\"Nothing to be done for 'all'\") != -1"
+
+  handlers:
+    - name: Clean up utf8.zip
+      file:
+        path: "{{ home }}/img-manip/lib/utf8.zip"
+        state: absent
+
+
+
+- name: As root, install the new img-manip
+  hosts: mockbot
+  become: yes
+  become_method: sudo
+  vars:
+    home: "/home/ubuntu"
+
+  tasks:
+    - name: Run make install
+      shell: make install
+      args:
+        chdir: "{{ home }}/img-manip"

@@ -35,6 +35,27 @@ make install # this creates a symlink so you only need to run it once
 
 ### Deployment
 
+#### New method
+
+The file `deploy.yml` is an [Ansible](https://www.ansible.com/how-ansible-works) playbook
+that handles the installation of imagemagick, dependancies, and img-manip itself.
+
+The deploy playbook assumes a `mockbot` group exists.
+
+``` ini
+# /etc/ansible/hosts
+[mockbot]
+10.0.0.242
+10.0.1.111
+```
+
+``` bash
+# To deploy 'mockbot'
+ansible-playbook deploy.yml -f 10
+```
+
+#### Old method
+
 From your local machine, run `ruby deploy.rb`. This uses the AWS CLI to find EC2 instances
 with the "mockbot" role (same "Role" tag that `cap-ec2` uses.)
 

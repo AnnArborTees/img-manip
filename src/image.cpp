@@ -5,6 +5,7 @@
 #include <cassert>
 #define _USE_MATH_DEFINES
 #include <math.h>
+#include <cstring>
 // NOTE iostream for debugging only here
 #include <iostream>
 
@@ -285,7 +286,7 @@ namespace mockbot {
 
         size_t area = (size_t)width * (size_t)height;
         for (size_t i = 0; i < area; i++)
-            memcpy(&image_data[i * bytes_per_pixel], bg_pixel, bytes_per_pixel);
+            std::memcpy(&image_data[i * bytes_per_pixel], bg_pixel, bytes_per_pixel);
 
         return true;
     }
@@ -322,10 +323,10 @@ namespace mockbot {
                 uint8_t* dest_pixel = transparent_image_data + i * 4;
 
                 if (pixel_eq(src_pixel, bg_color, bytes_per_pixel)) {
-                    memcpy(dest_pixel, empty_pixel, sizeof(empty_pixel));
+                    std::memcpy(dest_pixel, empty_pixel, sizeof(empty_pixel));
                 }
                 else {
-                    memcpy(dest_pixel, src_pixel, bytes_per_pixel);
+                    std::memcpy(dest_pixel, src_pixel, bytes_per_pixel);
                     if (bytes_per_pixel == 3)
                         dest_pixel[3] = 0xFF;
                 }

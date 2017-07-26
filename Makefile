@@ -18,7 +18,7 @@ update: bin/mockbot
 	cp bin/mockbot /usr/bin/mockbot
 
 install: bin/mockbot
-	ln -s bin/mockbot /usr/bin/mockbot
+	cp bin/mockbot /usr/bin/mockbot
 
 lib/cJSON.o: lib lib/cJSON.c lib/cJSON.h
 	gcc $(OPTIMIZE) -c -std=c99 -o $@ lib/cJSON.c
