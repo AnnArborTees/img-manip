@@ -2,7 +2,7 @@
 - name: Download and compile imagemagick from source
   hosts: mockbot
   vars:
-    home: "/home/ubuntu"
+    home: "/home/{{ ansible_user }}"
     imagemagick: "ImageMagick-6.9.9-3"
 
   tasks:
@@ -46,7 +46,7 @@
   become: yes
   become_method: sudo
   vars:
-    home: "/home/ubuntu"
+    home: "/home/{{ ansible_user }}"
     imagemagick: "ImageMagick-6.9.9-3"
     shared_object: "libMagick++-6.Q16.so.8"
 
@@ -72,7 +72,7 @@
 - name: Set up img-manip
   hosts: mockbot
   vars:
-    home: "/home/ubuntu"
+    home: "/home/{{ ansible_user }}"
 
   tasks:
     - name: Clone img-manip
@@ -128,7 +128,7 @@
   become: yes
   become_method: sudo
   vars:
-    home: "/home/ubuntu"
+    home: "/home/{{ ansible_user }}"
 
   tasks:
     - name: Run make install
