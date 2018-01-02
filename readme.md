@@ -65,3 +65,7 @@ Some caveats:
   of https://github.com for this repository on the production servers.
 * It is assumed that the `img-manip` repository is cloned into `/home/ubuntu/img-manip`
   on all production servers.
+
+#### Manually
+
+Just get it so that the mockbot executable is in PATH. Just running `make; sudo make install` on the production server should work just fine.
