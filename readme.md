@@ -33,6 +33,11 @@ make
 make install # this creates a symlink so you only need to run it once
 ```
 
+## TO USE:
+
+Run `bin/mockbot help` to see the list of subcommands and how they're used.
+Any number of subcommands can be specified in a single invocation of `mockbot`.
+
 ### Deployment
 
 #### New method

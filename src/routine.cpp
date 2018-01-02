@@ -9,6 +9,23 @@ namespace mockbot {
 
 class CompositeRoutine : public Routine {
 public:
+    const char* help_text() const {
+        return
+            "Syntax:\n"\
+            "              (0)       (1)                (2)             (3) (4) (5) (6) (7)      (8)\n"\
+            "  bin/mockbot composite img/blankshirt.png img/artwork.png 409 192 665 760 multiply test/img/out1.png\n"\
+            "\n"\
+            "(0): subcommand - always 'composite'\n"\
+            "(1): background image, or \"--\" to use the previous command's canvas\n"\
+            "(2): foreground image, or \"--\" to use the previous command's canvas\n"\
+            "(3): foreground x\n"\
+            "(4): foreground y\n"\
+            "(5): foreground width\n"\
+            "(6): foreground height\n"\
+            "(7): composition method\n"\
+            "(8): output file name\n";
+    };
+
     int args_used() const { return 9; }
 
     int perform(Session &session, char** argv) {
@@ -104,25 +121,29 @@ public:
     }
 };
 
-// Syntax:
-//           (0)        (1)     (2)             (3)             (4)           (5) (6) (7)   (8)  (9) (10) (11) (12)
-//   mockbot thumbnail  #00FF00 img/heather.png img/artwork.png img/swash.png 500 10  over  1081 501 2265 3513 img/result.png
-//
-// (0):  subcommand - always 'thumbnail'
-// (1):  background color, set to "--" to use the first pixel of the artwork image
-// (2):  heather file path, set to "--" to not use heather
-// (3):  artwork file path, set to "--" to use the canvas from the previous command
-// (4):  swash file path
-// (5):  canvas width and height (it's always square)
-// (6):  padding
-// (7):  artwork composition method
-// (8):  artwork x (rel. to the image's topleft)
-// (9):  artwork y
-// (10): artwork width (within its image - not the image dimensions)
-// (11): artwork height
-// (12): output file name
 class ThumbnailRoutine : public Routine {
 public:
+    const char* help_text() const {
+        return
+            "Syntax:\n"\
+            "          (0)        (1)     (2)             (3)             (4)           (5) (6) (7)   (8)  (9) (10) (11) (12)\n"\
+            "  mockbot thumbnail  #00FF00 img/heather.png img/artwork.png img/swash.png 500 10  over  1081 501 2265 3513 img/result.png\n"\
+            "\n"\
+            "(0):  subcommand - always 'thumbnail'\n"\
+            "(1):  background color, set to \"--\" to use the first pixel of the artwork image\n"\
+            "(2):  heather file path, set to \"--\" to not use heather\n"\
+            "(3):  artwork file path, set to \"--\" to use the canvas from the previous command\n"\
+            "(4):  swash file path\n"\
+            "(5):  canvas width and height (it's always square)\n"\
+            "(6):  padding\n"\
+            "(7):  artwork composition method\n"\
+            "(8):  artwork x (rel. to the image's topleft)\n"\
+            "(9):  artwork y\n"\
+            "(10): artwork width (within its image - not the image dimensions)\n"\
+            "(11): artwork height\n"\
+            "(12): output file name\n";
+    }
+
     int args_used() const { return 13; }
 
     int perform(Session &session, char** argv) {
@@ -228,23 +249,27 @@ public:
 };
 
 
-// Syntax:
-//           (0)  (1)     (2)            (3)           (4)              (5) (6) (7) (8) (9)  (10)
-//   mockbot text "Hello" img/canvas.png img/chars.png img/charset.json 100 100 300 120 over img/output.png
-//
-// (0):  subcommand - always 'text'
-// (1):  the text to print onto the image
-// (2):  image on which to print the text
-// (3):  image containing the letters or "--" for the last used letter atlas
-// (4):  json document describing where each letter is on (2) or "--" for the last used character set
-// (5):  x coordinate on (2) of the center of the text
-// (6):  y coordinate on (2) of the center of the text
-// (7):  width of text region (can be "--" to be any width)
-// (8):  height of text region (can be "--" to be any height)
-// (9):  composite method
-// (10): file to save the result to
 class TextRoutine : public Routine {
 public:
+    const char* help_text() const {
+        return
+            "Syntax:\n"\
+            "          (0)  (1)     (2)            (3)           (4)              (5) (6) (7) (8) (9)  (10)\n"\
+            "  mockbot text \"Hello\" img/canvas.png img/chars.png img/charset.json 100 100 300 120 over img/output.png\n"\
+            "\n"\
+            "(0):  subcommand - always 'text'\n"\
+            "(1):  the text to print onto the image\n"\
+            "(2):  image on which to print the text\n"\
+            "(3):  image containing the letters or \"--\" for the last used letter atlas\n"\
+            "(4):  json document describing where each letter is on (2) or \"--\" for the last used character set\n"\
+            "(5):  x coordinate on (2) of the center of the text\n"\
+            "(6):  y coordinate on (2) of the center of the text\n"\
+            "(7):  width of text region (can be \"--\" to be any width)\n"\
+            "(8):  height of text region (can be \"--\" to be any height)\n"\
+            "(9):  composite method\n"\
+            "(10): file to save the result to\n";
+    }
+
     int args_used() const { return 11; }
 
     int perform(Session &session, char** argv) {
@@ -353,24 +378,28 @@ public:
     }
 };
 
-// Syntax:
-//           (0)     (1)     (2)            (3)           (4)              (5) (6)  (7)  (8)(9) (10) (11)
-//   mockbot arctext "Hello" img/canvas.png img/chars.png img/charset.json 100 100  200  30 110 over img/output.png
-//
-// (0):  subcommand - always 'arctext'
-// (1):  the text to print onto the image
-// (2):  image on which to print the text
-// (3):  image containing the letters
-// (4):  json document describing where each letter is on (2)
-// (5):  x coordinate of circle center (or -- for center of image)
-// (6):  y coordinate of circle center (or -- for center of image)
-// (7):  radius of circle
-// (8):  min height of text
-// (9):  max height of text
-// (10): composition method ("over" or "multiply")
-// (11): output file
 class ArctextRoutine : public Routine {
 public:
+    const char* help_text() const {
+        return
+            "Syntax:\n"\
+            "          (0)     (1)     (2)            (3)           (4)              (5) (6)  (7)  (8)(9) (10) (11)\n"\
+            "  mockbot arctext \"Hello\" img/canvas.png img/chars.png img/charset.json 100 100  200  30 110 over img/output.png\n"\
+            "\n"\
+            "(0):  subcommand - always 'arctext'\n"\
+            "(1):  the text to print onto the image\n"\
+            "(2):  image on which to print the text\n"\
+            "(3):  image containing the letters\n"\
+            "(4):  json document describing where each letter is on (2)\n"\
+            "(5):  x coordinate of circle center (or -- for center of image)\n"\
+            "(6):  y coordinate of circle center (or -- for center of image)\n"\
+            "(7):  radius of circle\n"\
+            "(8):  min height of text\n"\
+            "(9):  max height of text\n"\
+            "(10): composition method (\"over\" or \"multiply\")\n"\
+            "(11): output file\n";
+    }
+
     int args_used() const { return 12; }
 
     int perform(Session &session, char** argv) {
@@ -583,26 +612,30 @@ public:
 };
 
 
-// Syntax:
-//           (0)   (1)     (2)            (3)             (4)     (5)     (6) (7) (8) (9) (10) (11) (12) (13)
-//   mockbot ftext "Hello" img/canvas.png @font/ariel.ttf #FFFFFF #000000 2.5 0   120 120 700  100  over img/output.png
-//
-// (0):  subcommand - always 'ftext'
-// (1):  the text to print onto the image
-// (2):  image on which to print the text
-// (3):  font to use
-// (4):  font color
-// (5):  font outline color or "--" for no outline
-// (6):  font outline width
-// (7):  font canvas padding
-// (8):  rectangle x
-// (9):  rectangle y
-// (10): rectangle width
-// (11): rectangle height
-// (12): composition method
-// (13): output file
 class FTextRoutine : public Routine {
 public:
+    const char* help_text() const {
+        return
+            "Syntax:\n"\
+            "          (0)   (1)     (2)            (3)             (4)     (5)     (6) (7) (8) (9) (10) (11) (12) (13)\n"\
+            "  mockbot ftext \"Hello\" img/canvas.png @font/ariel.ttf #FFFFFF #000000 2.5 0   120 120 700  100  over img/output.png\n"\
+            "\n"\
+            "(0):  subcommand - always 'ftext'\n"\
+            "(1):  the text to print onto the image\n"\
+            "(2):  image on which to print the text\n"\
+            "(3):  font to use\n"\
+            "(4):  font color\n"\
+            "(5):  font outline color or \"--\" for no outline\n"\
+            "(6):  font outline width\n"\
+            "(7):  font canvas padding\n"\
+            "(8):  rectangle x\n"\
+            "(9):  rectangle y\n"\
+            "(10): rectangle width\n"\
+            "(11): rectangle height\n"\
+            "(12): composition method\n"\
+            "(13): output file\n";
+    }
+
     int args_used() const { return 14; }
 
     int perform(Session &session, char** argv) {
@@ -720,10 +753,28 @@ public:
 
 class TestRoutine : public Routine {
 public:
+    const char* help_text() const {
+        return "A test command\n";
+    }
+
     int args_used() const { return 1; }
 
     int perform(Session &session, char** argv) {
         std::cout << "Hello!!! " << argv[0] << "\n";
+        return 0;
+    }
+};
+
+class HelpRoutine : public Routine {
+public:
+    const char* help_text() const {
+        return "Shows this message\n";
+    }
+
+    int args_used() const { return 0; }
+
+    int perform(Session &session, char **argv) {
+        print_all_help_texts();
         return 0;
     }
 };
@@ -738,7 +789,8 @@ std::unordered_map<std::string, Routine*> Routine::subcommands = {
         { "text", new TextRoutine },
         { "ftext", new FTextRoutine },
         { "arctext", new ArctextRoutine },
-        { "test", new TestRoutine }
+        { "help", new HelpRoutine }
+        // { "test", new TestRoutine }
     }
 };
 
@@ -810,6 +862,13 @@ Image* Session::load_canvas(const char* filename) {
 
 Image* Session::get_last_canvas() const {
     return last_canvas.get();
+}
+
+void print_all_help_texts() {
+    for (auto &r : Routine::subcommands) {
+        std::cout << "==== \"" << r.first << "\" (" << r.second->args_used() << " arguments) ====\n";
+        std::cout << r.second->help_text() << '\n' << std::endl;
+    }
 }
 
 }

@@ -52,7 +52,7 @@ bool run(Session &session, int* pargc, char*** pargv) {
     *pargc -= args_needed;
     *pargv += args_needed;
 
-    return true;
+    return args_needed != 0;
 }
 
 int examine(int argc, char** argv) {
@@ -89,27 +89,19 @@ int examine(int argc, char** argv) {
   return 0;
 }
 
-int help(int argc, char** argv) {
-    std::cout << "Available subcommands: ";
-    for (auto &r : Routine::subcommands) {
-        std::cout << '"' << r.first << '"' << " -- requires "
-                  << r.second->args_used() << " arguments\n";
-    }
-    return 0;
-}
-
 int main(int argc, char** argv) {
     // First arg is application path
     argc -= 1;
     argv += 1;
 
     const std::string examine_cmd = "examine";
-    const std::string help_cmd = "help";
 
     if (argc >= 1 && argv[0] == examine_cmd)
-      return examine(argc, argv);
-    else if (argc >= 1 && std::string(argv[0]).find(help_cmd) != std::string::npos)
-      return help(argc, argv);
+        return examine(argc, argv);
+    else if (argc == 0) {
+        print_all_help_texts();
+        return 0;
+    }
 
     Session session;
     while (run(session, &argc, &argv)) {}

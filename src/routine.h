@@ -67,7 +67,9 @@ namespace mockbot {
 
         virtual int perform(Session &session, char** argv) = 0;
         virtual int args_used() const = 0;
+        virtual const char* help_text() const = 0;
     };
 
+    void print_all_help_texts();
 }
 #endif // ROUTINE_H

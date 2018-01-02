@@ -8,11 +8,11 @@ mockbot: bin/mockbot
 
 debug: lib lib/cJSON.o $(wildcard src/*.cpp) $(wildcard src/*.h)
 	mkdir -p bin
-	$(CXX) $(DBGFLAGS) $(wildcard src/*.cpp) -o bin/mockbot
+	$(CXX) $(FLAGS) $(DEBUG) $(wildcard src/*.cpp) -o bin/mockbot
 
 bin/mockbot: lib lib/cJSON.o $(wildcard src/*.cpp) $(wildcard src/*.h)
 	mkdir -p bin
-	$(CXX) $(FLAGS) $(wildcard src/*.cpp) -o $@
+	$(CXX) $(FLAGS) $(OPTIMIZE) $(wildcard src/*.cpp) -o $@
 
 update: bin/mockbot
 	cp bin/mockbot /usr/bin/mockbot
