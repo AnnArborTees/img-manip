@@ -12,8 +12,8 @@ public:
     const char* help_text() const {
         return
             "Syntax:\n"\
-            "              (0)       (1)                (2)             (3) (4) (5) (6) (7)      (8)\n"\
-            "  bin/mockbot composite img/blankshirt.png img/artwork.png 409 192 665 760 multiply test/img/out1.png\n"\
+            "              (0)       (1)                (2)             (3) (4) (5) (6) (7)      (8) (9)\n"\
+            "  bin/mockbot composite img/blankshirt.png img/artwork.png 409 192 665 760 multiply 150 test/img/out1.png\n"\
             "\n"\
             "(0): subcommand - always 'composite'\n"\
             "(1): background image, or \"--\" to use the previous command's canvas\n"\
@@ -23,10 +23,11 @@ public:
             "(5): foreground width\n"\
             "(6): foreground height\n"\
             "(7): composition method\n"\
-            "(8): output file name\n";
+            "(8): dpi or \"--\" to use 150\n"\
+            "(9): output file name\n";
     };
 
-    int args_used() const { return 9; }
+    int args_used() const { return 10; }
 
     int perform(Session &session, char** argv) {
         // If '--' is passed for img2, we have img2 point to the previously used canvas,
@@ -34,14 +35,22 @@ public:
         // function, so we have it point to this local variable in that case.
         Image local_img1;
         Image local_img2;
-
+ 
         int x = std::stoi(std::string(argv[3]));
         int y = std::stoi(std::string(argv[4]));
         int w = std::stoi(std::string(argv[5]));
         int h = std::stoi(std::string(argv[6]));
 
+        // Check DPI for images
+        if (!cstr_eq(argv[8], "--")) {
+            int dpi = std::stoi(std::string(argv[8]));
+            local_img1.set_dpi(dpi);
+            local_img2.set_dpi(dpi);
+        }
+        
+         
         // TODO please clean up the code for loading the images here it's awful
-
+  
         Image* img2;
         if (cstr_eq(argv[2], "--")) {
             if (cstr_eq(argv[1], "--")) {
@@ -104,15 +113,15 @@ public:
             return 2;
         }
 
-        if (!cstr_eq(argv[8], "--")) {
-            FILE* f3 = fopen(argv[8], "wb");
+        if (!cstr_eq(argv[9], "--")) {
+            FILE* f3 = fopen(argv[9], "wb");
             if (!f3) {
-                std::cerr << "Couldn't reopen " << argv[9] << " for writing\n";
+                std::cerr << "Couldn't reopen " << argv[10] << " for writing\n";
                 return 2;
             }
 
             if (!img1->save(f3)) {
-                std::cerr << "Failed to encode result to " << argv[9] << '\n';
+                std::cerr << "Failed to encode result to " << argv[10] << '\n';
                 return 2;
             }
             fclose(f3);
@@ -126,8 +135,8 @@ public:
     const char* help_text() const {
         return
             "Syntax:\n"\
-            "          (0)        (1)     (2)             (3)             (4)           (5) (6) (7)   (8)  (9) (10) (11) (12)\n"\
-            "  mockbot thumbnail  #00FF00 img/heather.png img/artwork.png img/swash.png 500 10  over  1081 501 2265 3513 img/result.png\n"\
+            "          (0)        (1)     (2)             (3)             (4)           (5) (6) (7)   (8)  (9) (10) (11) (12) (13)\n"\
+            "  mockbot thumbnail  #00FF00 img/heather.png img/artwork.png img/swash.png 500 10  over  1081 501 2265 3513 150  img/result.png\n"\
             "\n"\
             "(0):  subcommand - always 'thumbnail'\n"\
             "(1):  background color, set to \"--\" to use the first pixel of the artwork image\n"\
@@ -141,10 +150,11 @@ public:
             "(9):  artwork y\n"\
             "(10): artwork width (within its image - not the image dimensions)\n"\
             "(11): artwork height\n"\
-            "(12): output file name\n";
+            "(12): dpi or \"--\" to use 150\n"\
+            "(13): output file name\n";
     }
 
-    int args_used() const { return 13; }
+    int args_used() const { return 14; }
 
     int perform(Session &session, char** argv) {
         Image canvas;
@@ -157,6 +167,14 @@ public:
         int canvas_dim = std::stoi(std::string(argv[5]));
         int padding    = std::stoi(std::string(argv[6]));
 
+        // Check DPI for images
+        if (!cstr_eq(argv[8], "--")) {
+            int dpi = std::stoi(std::string(argv[12]));
+            canvas.set_dpi(dpi);
+            artwork->set_dpi(dpi);
+            swash.set_dpi(dpi);
+            heather.set_dpi(dpi);
+        }
         // Common routine to load an image with error checking.
 #define LOAD_IMAGE(image, filename)                                                                                       \
     do {                                                                                                                       \
@@ -231,16 +249,16 @@ public:
         // Now we add the swash, and the operation is done.
         canvas.composite(swash, 0, 0, canvas_dim, canvas_dim, &session.composite_multiply);
 
-        FILE* result = fopen(argv[12], "wb");
+        FILE* result = fopen(argv[13], "wb");
         if (!result) {
-            std::cerr << "Failed to open result file " << argv[12] << '\n';
+            std::cerr << "Failed to open result file " << argv[13] << '\n';
             return 4;
         }
         bool saved = canvas.save(result);
         fclose(result);
 
         if (!saved) {
-            std::cerr << "Failed to encode result file " << argv[12] << '\n';
+            std::cerr << "Failed to encode result file " << argv[13] << '\n';
             return 5;
         }
         else

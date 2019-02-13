@@ -115,6 +115,8 @@ namespace mockbot {
         // Encodes and writes image_data to the given file
         bool save(FILE* output);
 
+        void set_dpi(int value);
+
         // Returns the reason the previous method returned false (currently only works after load_file())
         std::string last_error();
 
@@ -125,9 +127,11 @@ namespace mockbot {
         png_uint_32 height;
     private:
         uint8_t* image_data;
+        int dpi=150;
         int bit_depth;
         int color_type;
         int bytes_per_pixel;
+        void image_from_magick(Magick::Image& magick);
         std::string error;
     };
 }
