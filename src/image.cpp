@@ -252,7 +252,7 @@ namespace mockbot {
             PNG_COMPRESSION_TYPE_DEFAULT,
             PNG_FILTER_TYPE_DEFAULT
         );
-
+        png_set_pHYs(w.png, w.info, 150, 150, PNG_RESOLUTION_UNKNOWN); // Set DPI use identify -format '%x,%y\n' image.png to verify       
         png_time modtime;
         png_convert_from_time_t(&modtime, time(NULL));
         png_set_tIME(w.png, w.info, &modtime);
@@ -269,7 +269,6 @@ namespace mockbot {
             free(row_pointers);
         }
         png_write_end(w.png, NULL);
-
         return true;
     }
 

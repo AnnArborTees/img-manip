@@ -74,3 +74,10 @@ Some caveats:
 #### Manually
 
 Just get it so that the mockbot executable is in PATH. Just running `make; sudo make install` on the production server should work just fine.
+
+#### Helpful Introduction to libpng
+- [Introduction from libpng.org](http://www.libpng.org/pub/png/libpng-manual.txt)
+- [Manual](http://www.libpng.org/pub/png/libpng-1.4.0-manual.pdf)
+- [Helpful OReilly Intro](ftp://ftp.oreilly.com/examples/gff/CDROM/SOFTWARE/SOURCE/LIBPNG/LIBPNG.TXT)
+- [Intro from W3.org](https://www.w3.org/TR/PNG-Chunks.html)
+
