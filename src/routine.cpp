@@ -635,8 +635,8 @@ public:
     const char* help_text() const {
         return
             "Syntax:\n"\
-            "          (0)   (1)     (2)            (3)             (4)     (5)     (6) (7) (8) (9) (10) (11) (12) (13)\n"\
-            "  mockbot ftext \"Hello\" img/canvas.png @font/ariel.ttf #FFFFFF #000000 2.5 0   120 120 700  100  over img/output.png\n"\
+            "          (0)   (1)     (2)            (3)             (4)     (5)     (6) (7) (8) (9) (10) (11) (12) (13) (14)\n"\
+            "  mockbot ftext \"Hello\" img/canvas.png @font/ariel.ttf #FFFFFF #000000 2.5 0   120 120 700  100  over 150 img/output.png\n"\
             "\n"\
             "(0):  subcommand - always 'ftext'\n"\
             "(1):  the text to print onto the image\n"\
@@ -651,10 +651,11 @@ public:
             "(10): rectangle width\n"\
             "(11): rectangle height\n"\
             "(12): composition method\n"\
-            "(13): output file\n";
+            "(13): dpi or \"--\" to use 150\n"\
+            "(14): output file\n";
     }
 
-    int args_used() const { return 14; }
+    int args_used() const { return 15; }
 
     int perform(Session &session, char** argv) {
         using Magick::Quantum;
@@ -670,6 +671,12 @@ public:
         if (!canvas) {
             std::cerr << "Failed to load canvas at " << argv[2] << '\n';
             return 3;
+        }
+
+        // Check DPI for images
+        if (!cstr_eq(argv[13], "--")) {
+            int dpi = std::stoi(std::string(argv[13]));
+            canvas->set_dpi(dpi);
         }
 
         int padding     = atoi(argv[7]);
@@ -755,8 +762,8 @@ public:
         Compositor* comp = session.load_compositor(argv[12]);
         canvas->composite(text_image, 0, 0, text_width, text_height, dest_x, dest_y, dest_width, dest_height, comp);
 
-        if (!cstr_eq(argv[13], "--")) {
-            FILE* output_file = fopen(argv[13], "wb");
+        if (!cstr_eq(argv[14], "--")) {
+            FILE* output_file = fopen(argv[14], "wb");
             bool success = canvas->save(output_file);
             if (output_file) fclose(output_file);
             if (!success) {

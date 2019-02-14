@@ -131,7 +131,6 @@ namespace mockbot {
         int bit_depth;
         int color_type;
         int bytes_per_pixel;
-        void image_from_magick(Magick::Image& magick);
         std::string error;
     };
 }
