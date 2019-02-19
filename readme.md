@@ -6,6 +6,9 @@ executable you'll just have to use gcc manually).
 
 The rest of this readme will refer to the mockup tool used by MockBot.
 
+Softwear-Retail uses this tool for generating artwork
+MockBot tool is installed on production servers (10.0.3.222 and 10.0.0.222)
+
 ## REQUIREMENTS
 
 ### macOS
