@@ -253,7 +253,9 @@ namespace mockbot {
             PNG_COMPRESSION_TYPE_DEFAULT,
             PNG_FILTER_TYPE_DEFAULT
         );
-        png_set_pHYs(w.png, w.info, this->dpi, this->dpi, PNG_RESOLUTION_UNKNOWN); // Set DPI in terminal use "identify -format '%x,%y\n' image.png" to verify       
+        const float DOT_FROM_INCH_TO_METER = 39.37007874016;
+        float dpi = this->dpi * DOT_FROM_INCH_TO_METER; 
+        png_set_pHYs(w.png, w.info, dpi, dpi, PNG_RESOLUTION_UNKNOWN); // Set DPI in terminal use "identify -format '%x,%y\n' image.png" to verify       
         png_time modtime;
         png_convert_from_time_t(&modtime, time(NULL));
         png_set_tIME(w.png, w.info, &modtime);
