@@ -171,7 +171,6 @@ public:
         if (!cstr_eq(argv[12], "--")) {
             int dpi = std::stoi(std::string(argv[12]));
             canvas.set_dpi(dpi);
-            artwork->set_dpi(dpi);
             swash.set_dpi(dpi);
             heather.set_dpi(dpi);
         }
