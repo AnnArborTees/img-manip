@@ -168,7 +168,7 @@ public:
         int padding    = std::stoi(std::string(argv[6]));
 
         // Check DPI for images
-        if (!cstr_eq(argv[8], "--")) {
+        if (!cstr_eq(argv[12], "--")) {
             int dpi = std::stoi(std::string(argv[12]));
             canvas.set_dpi(dpi);
             artwork->set_dpi(dpi);
